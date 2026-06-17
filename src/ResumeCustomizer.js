@@ -16,10 +16,11 @@ export default function ResumeCustomizer() {
     reader.onload = (e) => {
       try {
         const json = JSON.parse(e.target.result);
-        setResumeData(json);
+        const normalizedJson = normalizeResumeData(json);
+        setResumeData(normalizedJson);
         setError('');
         // Expand all sections by default
-        const sections = Object.keys(json).reduce((acc, key) => {
+        const sections = Object.keys(normalizedJson).reduce((acc, key) => {
           acc[key] = true;
           return acc;
         }, {});
@@ -161,11 +162,29 @@ export default function ResumeCustomizer() {
   );
 }
 
+function normalizeResumeData(data) {
+  return {
+    ...data,
+    skills: Array.isArray(data.skills)
+      ? data.skills.map((skillGroup) => {
+          const value = getSkillValues(skillGroup);
+          const { field, ...rest } = skillGroup;
+
+          return {
+            ...rest,
+            type: skillGroup.type || (Array.isArray(field) ? 'field' : ''),
+            value,
+          };
+        })
+      : data.skills,
+  };
+}
+
 // Resume Statistics Component
 function ResumeStats({ resumeData }) {
   const stats = {
     experience: resumeData.experience?.length || 0,
-    skills: resumeData.skills?.reduce((acc, group) => acc + (group.field?.length || 0), 0) || 0,
+    skills: resumeData.skills?.reduce((acc, group) => acc + (getSkillValues(group).length || 0), 0) || 0,
     education: resumeData.education?.length || 0,
     contacts: resumeData.contacts?.filter(c => c.link)?.length || 0,
   };
@@ -274,7 +293,7 @@ function UploadSection({ onUpload, error }) {
   "contacts": [{"annotation": "LinkedIn", "link": "url", "showAnnotation": true}],
   "profile": "Professional summary...",
   "experience": [{"company": "", "position": "", "address": "", "date": "", "description": [""]}],
-  "skills": [{"field": [""]}],
+  "skills": [{"type": "Programming Languages", "value": ["JavaScript", "React"]}],
   "education": [{"school": "", "date": "", "details": ""}],
   "miscellaneous": [{"type": "description"}]
 }`}
@@ -495,7 +514,7 @@ function ResumeEditor({
             {resumeData.skills.map((skillGroup, idx) => (
               <div key={idx} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                 <div className="flex items-start justify-between mb-3">
-                  <h4 className="font-semibold text-slate-900">Skill Group {idx + 1}</h4>
+                  <h4 className="font-semibold text-slate-900">Skill Section {idx + 1}</h4>
                   <button
                     onClick={() => onRemoveItem('skills', idx)}
                     className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
@@ -503,22 +522,28 @@ function ResumeEditor({
                     <X size={18} />
                   </button>
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-2">Skills</label>
+                <InputField
+                  label="Skill Type"
+                  value={skillGroup.type || ''}
+                  onChange={(value) => onDataChange(`skills.${idx}.type`, value)}
+                  size="small"
+                />
+                <div className="mt-3">
+                  <label className="text-xs font-bold text-slate-700 block mb-2">Skill Values</label>
                   <div className="space-y-2">
-                    {Array.isArray(skillGroup.field) && skillGroup.field.map((skill, skillIdx) => (
+                    {getSkillValues(skillGroup).map((skill, skillIdx) => (
                       <div key={skillIdx} className="flex gap-2">
                         <input
                           type="text"
                           value={skill}
-                          onChange={(e) => onDataChange(`skills.${idx}.field.${skillIdx}`, e.target.value)}
+                          onChange={(e) => onDataChange(`skills.${idx}.value.${skillIdx}`, e.target.value)}
                           className="flex-1 px-3 py-2 text-xs border border-slate-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="Add skill"
                         />
                         <button
                           onClick={() => {
-                            const newSkills = skillGroup.field.filter((_, i) => i !== skillIdx);
-                            onDataChange(`skills.${idx}.field`, newSkills);
+                            const newSkills = getSkillValues(skillGroup).filter((_, i) => i !== skillIdx);
+                            onDataChange(`skills.${idx}.value`, newSkills);
                           }}
                           className="text-red-500 hover:bg-red-50 p-2 rounded transition-colors"
                         >
@@ -528,8 +553,8 @@ function ResumeEditor({
                     ))}
                     <button
                       onClick={() => {
-                        const newSkills = [...(skillGroup.field || []), ''];
-                        onDataChange(`skills.${idx}.field`, newSkills);
+                        const newSkills = [...getSkillValues(skillGroup), ''];
+                        onDataChange(`skills.${idx}.value`, newSkills);
                       }}
                       className="text-xs text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors flex items-center gap-1"
                     >
@@ -540,10 +565,10 @@ function ResumeEditor({
               </div>
             ))}
             <button
-              onClick={() => onAddItem('skills', { field: [''] })}
+              onClick={() => onAddItem('skills', { type: '', value: [''] })}
               className="w-full py-2 px-4 border-2 border-dashed border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-medium flex items-center justify-center gap-2"
             >
-              <Plus size={18} /> Add Skill Group
+              <Plus size={18} /> Add Skill Section
             </button>
           </div>
         </SectionCard>
@@ -710,6 +735,12 @@ function TextAreaField({ label, value, onChange, rows = 4 }) {
   );
 }
 
+function getSkillValues(skillGroup) {
+  if (Array.isArray(skillGroup?.value)) return skillGroup.value;
+  if (Array.isArray(skillGroup?.field)) return skillGroup.field;
+  return [];
+}
+
 // Download JSON Function
 function downloadJSON(resumeData) {
   try {
@@ -733,7 +764,7 @@ function downloadJSON(resumeData) {
 async function exportToDocx(resumeData) {
   try {
     // Dynamically import the docx library
-    const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle } = await import('docx');
+    const { Document, Packer, Paragraph, HeadingLevel, AlignmentType } = await import('docx');
 
     const sections = [];
 
@@ -856,17 +887,26 @@ async function exportToDocx(resumeData) {
         })
       );
 
-      resumeData.skills.forEach((skillGroup, groupIdx) => {
-        if (skillGroup.field && skillGroup.field.length > 0) {
-          const skills = skillGroup.field.filter(Boolean).join(', ');
-          if (skills) {
-            sections.push(
-              new Paragraph({
-                text: skills,
-                spacing: { after: 100 }
-              })
-            );
-          }
+      resumeData.skills.forEach((skillGroup) => {
+        const skills = getSkillValues(skillGroup).filter(Boolean).join(', ');
+
+        if (skillGroup.type || skills) {
+          sections.push(
+            new Paragraph({
+              text: skillGroup.type || 'Skills',
+              bold: true,
+              spacing: { before: 100, after: 50 }
+            })
+          );
+        }
+
+        if (skills) {
+          sections.push(
+            new Paragraph({
+              text: skills,
+              spacing: { after: 100 }
+            })
+          );
         }
       });
     }
