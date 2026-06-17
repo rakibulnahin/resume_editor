@@ -1,0 +1,67 @@
+{
+  "name": "Pagla Hoa",
+  "address": "Kogarah",
+  "phone": "1245878985",
+  "email": "a@gmial.com",
+  "contacts": [
+    {
+      "annotaction": "asdfasf",
+      "link": "asdfasdf",
+      "showAnnotation": true
+    }
+  ],
+  "profile": "asdf",
+  "experience": [
+    {
+      "company": "ABC",
+      "position": "ABC",
+      "address": "ABC",
+      "date": "17 July 2026",
+      "description": [
+        "I have done this",
+        "I have done that"
+      ]
+    },
+    {
+      "company": "XYZ",
+      "position": "XYZ",
+      "address": "XYZ",
+      "date": "17 July 2026",
+      "description": [
+        "No I have done this",
+        "No I have done that"
+      ]
+    },
+    {
+      "company": "BGB",
+      "position": "alkdfj",
+      "address": "asldfj",
+      "date": "asldkfj",
+      "description": [
+        "asldkfjsdf",
+        "werpoewr"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "field": [
+        "1",
+        "d",
+        "d"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "school": "asdfasdf",
+      "date": "adfasf",
+      "details": "asdf"
+    }
+  ],
+  "miscellaneous": [
+    {
+      "type": "asdfasdfasf"
+    }
+  ]
+}
