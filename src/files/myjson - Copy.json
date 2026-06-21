@@ -1,22 +1,22 @@
 {
-  "name": "Rakibul Alam Nahin",
+  "name": "bul Alam Nah",
   "address": "Kogarah Sydney NSW Australia",
-  "phone": "0434054029",
-  "email": "rakibulnahin@gmail.com",
+  "phone": "0485465029",
+  "email": "kibahi@gmail.com",
   "contacts": [
     {
       "annotation": "Linkedin",
-      "link": "https://www.linkedin.com/in/rakibul-alam-99b3761b0/",
+      "link": "https://www.linkedin.com/in/kibul-61b0/",
       "showAnnotation": true
     },
     {
       "annotation": "Github",
-      "link": "https://github.com/rakibulnahin",
+      "link": "https://github.com/akibulnn",
       "showAnnotation": true
     },
     {
       "annotation": "Website",
-      "link": "https://rakibulnahin.vercel.app/",
+      "link": "https://rbulnin.vercel.app/",
       "showAnnotation": true
     }
   ],
@@ -89,7 +89,7 @@
     }
   ],
 
-  "skills": [
+   "skills": [
     {
       "type": "technical",
       "value": [

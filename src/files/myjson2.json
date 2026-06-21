@@ -5,17 +5,17 @@
   "email": "rakibulnahin@gmail.com",
   "contacts": [
     {
-      "annotation": "Linkedin",
+      "annotaction": "Linkedin",
       "link": "https://www.linkedin.com/in/rakibul-alam-99b3761b0/",
       "showAnnotation": true
     },
     {
-      "annotation": "Github",
+      "annotaction": "Github",
       "link": "https://github.com/rakibulnahin",
       "showAnnotation": true
     },
     {
-      "annotation": "Website",
+      "annotaction": "Website",
       "link": "https://rakibulnahin.vercel.app/",
       "showAnnotation": true
     }
@@ -23,11 +23,11 @@
   "profile": " I have been working on Artificial Intelligence since 2020 and have gathered extensive knowledge regarding the field of Computer Vision, NLP and LLMs through my projects, academics and internship programs like Truuth. Additionally I have 1 year experience in web and mobile applications development while working as a Full stack software developer in Brac Bank and Shoplover in with React JS, Node JS SQL/NoSQL database. I am very good with communication and always try to understand my goal rather than just my task.",
   "experience": [
     {
-      "company": "Truuth.id",
-      "position": "AI Reserach Intern",
-      "address": "Sydney Australia",
-      "date": "FEB 2026 - JUNE 2026",
-      "description": [
+      "exp_company": "Truuth.id",
+      "exp_position": "AI Reserach Intern",
+      "exp_address": "Sydney Australia",
+      "exp_date": "FEB 2026 - JUNE 2026",
+      "exp_description": [
         "Researched on high performance text classification and extraction techniques with multiple LLMs like Llama Mavrick, Claude Haiku using AWS Bedrock and AWS Textract.",
         "Used python regex PyMuPDF for text extraction, text data analysis and augmentation of various types of documents/images for converting unstructured PDF/Image data into structured JSON formats.",
         "Used Claude Opus 4.7 to build a prototype orchestration of connecting multiple API with the resume extraction pipeline for a Adverse Media Sanction Project. Used python flask for creating backed with Postgre SQL and redis integration.",
@@ -36,55 +36,30 @@
       ]
     },
     {
-      "company": "BRAC Bank",
-      "position": "Full-Stack Developer",
-      "address": "Dhaka Bangladesh",
-      "date": "JULY 2023 - OCT 2023",
-      "description": [
+      "exp_company": "BRAC Bank",
+      "exp_position": "Full-Stack Developer",
+      "exp_address": "Dhaka Bangladesh",
+      "exp_date": "JULY 2023 - OCT 2023",
+      "exp_description": [
         "Developed a banking software product prototype using HTML, CSS, Javascript for frontend and JavaEE, Struts for backend development. Used java string parsing and Ad-Hoc optimization methods.",
         "Schema design efficient MySQL query function and REST API endpoints for data transfer.",
         "Enabled security and authentication protocols (Biometric Auth, OAuth).",
         "Performed QA testing with team and supervisor and submitted whole prototype."
-      ]
-    },
-    {
-      "company": "Shoplover E-Commerce",
-      "position": "MERN Developer",
-      "address": "Dhaka Bangladesh",
-      "date": "OCT 2022 - MARCH 2023",
-      "description": [
-        "Developed website using ReactJS/Next JS, NodeJS, Tailwind CSS, Javascript, JWT tokens.",
-        "Used ExpressJS, Microservices, REST API and OAuth for server integration and authentication.",
-        "Enhanced search and sorting algorithms for data transfer and optimized SQL query using Prisma Database and NoSQL for data retrieval.",
-        "Performed QA testing and unit testing while working with QA team. ",
-        "Contributed maintaining CI/CD pipeline using git and handled careful merges and BitBucket."
       ]
     }
   ],
   
   "projects": [
     {
-      "name": "Chat&Go – AI Travel Assistant",
-      "description": [
+      "pro_name": "Chat&Go – AI Travel Assistant",
+      "pro_description": [
         "Tourism-focused chatbot using LLaMA-7B incorporated Hybrid RAG using LangChain and Neo4j for information extraction. Designed for faster responses to personalized travel suggestions. Used python, PyTorch and transformer-based architecture, parameter based fine-tuning. Designed UI with React JS"
       ]
     },
     {
-      "name": "Bottle Detection Robot (ROS2 + CV)",
-      "description": [
+      "pro_name": "Bottle Detection Robot (ROS2 + CV)",
+      "pro_description": [
         "Collected own data and processed with image augmentation techniques then used YOLOv10 model to for testing the TurtleBot activity using ROS2. Finally trained ResNet-50 and Swin Transformer for bottle classification on custom dataset with 97% confidence and deployed to detect and act on recognition."
-      ]
-    },
-    {
-      "name": "RentLoop – Rental AI Agent",
-      "description": [
-        "In PromptFest 2025 Hackathon worked on a solving housing rental solution for students. Using SerpAPI for Scraping and RelevenceAI for pre-build AI Agents to generate search and response. Used N8N for automation and API endpoints. Build a NodeJS and ReactJs based UI for building the whole product."
-      ]
-    },
-    {
-      "name": "App Changer",
-      "description": [
-        "App Changer that pairs mobile and computer devices over local wifi to pair devices using mDNS broadcast server. Using python and React-Native application for easy use interface with secure connection over token based authentication."
       ]
     }
   ],
@@ -101,14 +76,14 @@
   ],
   "education": [
     {
-      "school": "Macquaire University (Australia) - Master of Information Technology in Artificial Intelligence",
-      "date": "FEB 2024 - JUNE 2026",
-      "details": "Successful in knowledge and skills for perfect AI Engineering"
+      "edu_school": "Macquaire University (Australia) - Master of Information Technology in Artificial Intelligence",
+      "edu_date": "FEB 2024 - JUNE 2026",
+      "edu_details": "Successful in knowledge and skills for perfect AI Engineering"
     }
   ],
   "miscellaneous": [
     {
-      "type": "LLM Mastery – Complete Guide to LLMs and Generative AI"
+      "mis_type": "LLM Mastery – Complete Guide to LLMs and Generative AI"
     }
   ]
 }
