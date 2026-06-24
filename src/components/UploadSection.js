@@ -2,7 +2,7 @@ import { Upload } from 'lucide-react';
 
 export default function UploadSection({ onUpload, error }) {
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="m-8 flex mx-auto">
       <div className="rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50/50 p-12 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors">
         <Upload size={48} className="mx-auto text-blue-600 mb-4" strokeWidth={1.5} />
         <h2 className="text-2xl font-bold text-slate-900 mb-2">Upload Your Resume JSON</h2>
@@ -24,7 +24,7 @@ export default function UploadSection({ onUpload, error }) {
         )}
       </div>
 
-      <div className="mt-12 p-6 bg-white rounded-xl border border-slate-200 shadow-sm">
+      <div className="ml-6 p-6 bg-white rounded-xl border border-slate-200 shadow-sm">
         <h3 className="text-lg font-bold text-slate-900 mb-3">Expected JSON Schema</h3>
         <pre className="text-xs bg-slate-100 p-4 rounded-lg overflow-auto text-slate-700">
 {`{

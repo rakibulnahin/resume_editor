@@ -4,6 +4,8 @@ import { downloadResume } from '../template_generator/docGenerator.js';
 
 export function downloadJSON(resumeData) {
   try {
+    console.log(resumeData);
+    
     const jsonString = JSON.stringify(resumeData, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = window.URL.createObjectURL(blob);
@@ -22,6 +24,7 @@ export function downloadJSON(resumeData) {
 
 export async function exportToDocx(resumeData) {
   try {
+    console.log(resumeData);
     
     await downloadResume(resumeData);
   } catch (error) {

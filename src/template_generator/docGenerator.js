@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, BorderStyle, Table, TableCell, TableRow, WidthType, VerticalAlign } from 'docx';
+import { Document, Packer, Paragraph, HeadingLevel, TextRun, ExternalHyperlink, AlignmentType, BorderStyle, Table, TableCell, TableRow, WidthType, VerticalAlign } from 'docx';
 import { space } from 'postcss/lib/list';
 
 /**
@@ -54,25 +54,21 @@ async function generateResume(resumeData) {
     );
   }
 
-  // Contact Information - Email, Phone, Website
+  // Contact Information - Email, Phone
   const contactLine1 = [];
   if (resumeData.email) contactLine1.push(`Email: ${resumeData.email}`);
   if (resumeData.phone) contactLine1.push(`Phone: ${resumeData.phone}`);
-  
-  const websiteContact = resumeData.contacts?.find(c => c.annotaction === 'Website' || c.annotation === 'Website');
-  if (websiteContact?.link) contactLine1.push(`Website: ${websiteContact.link}`);
+
 
   if (contactLine1.length > 0) {
     sections.push(
       new Paragraph({
-        text: contactLine1.join(' | '),
-        spacing: { after: 40 },
-        size: 24,
+        spacing: {before:80, after: 80 },
         "children": [
           new TextRun({
-            bold: true,
-            size: 24,                 // 12pt font size
-            font: "Arial",          // Change to match your template's typography
+            text: contactLine1.join(' | '),
+            size: 22,                 // 12pt font size
+            font: "Times New Roman",          // Change to match your template's typography
             // color: "1A365D",          // Deep dark blue color hex
           }),
         ]
@@ -80,20 +76,33 @@ async function generateResume(resumeData) {
     );
   }
 
-  // Contact Links - GitHub, LinkedIn
   const contactLine2 = [];
-  const githubContact = resumeData.contacts?.find(c => c.annotaction === 'Github' || c.annotation === 'GitHub');
-  const linkedinContact = resumeData.contacts?.find(c => c.annotaction === 'Linkedin' || c.annotation === 'LinkedIn');
-  
-  if (githubContact?.link) contactLine2.push(`GitHub: ${githubContact.link}`);
-  if (linkedinContact?.link) contactLine2.push(`LinkedIn: ${linkedinContact.link}`);
+ 
 
+  if(Array.isArray(resumeData.contacts) && resumeData.contacts.length>0){
+    resumeData.contacts.forEach(contact => {
+      if(contact.annotation != ""){
+        contactLine2.push(`${contact.annotation}: ${contact.link}`)
+      }else{
+        contactLine2.push(`${contact.link}`)
+
+      }
+    });
+  }
+
+  // Contact Links - GitHub, LinkedIn etc
   if (contactLine2.length > 0) {
     sections.push(
       new Paragraph({
-        text: contactLine2.join(' | '),
-        spacing: { after: 40 },
-        size: 24
+        spacing: { before:80, after: 80 },
+        "children": [
+          new TextRun({
+          text: contactLine2.join('  |  '),
+            size: 22,                 // 12pt font size
+            font: "Times New Roman",          // Change to match your template's typography
+            // color: "1A365D",          // Deep dark blue color hex
+          }),
+        ]
       })
     );
   }
