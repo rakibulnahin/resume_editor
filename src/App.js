@@ -446,6 +446,7 @@ function App() {
             //   toggleSection={toggleSection}
             // />
             <>
+
               <ResumeEditor
                 resumeData={resumeData}
                 setResumeData = {setResumeData}

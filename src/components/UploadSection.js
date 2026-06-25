@@ -1,6 +1,9 @@
-import { Upload } from 'lucide-react';
+import { ChevronDown, ChevronUp, Upload } from 'lucide-react';
+import { useState } from 'react';
 
 export default function UploadSection({ onUpload, error }) {
+  const [showSchemaPreview, setShowSchemaPreview] = useState(true);
+
   return (
     <div className="m-4 md:m-8 flex flex-col md:flex-row max-w-6xl mx-auto gap-6">
   {/* Left Box: Upload Drag/Drop Area */}
@@ -27,9 +30,39 @@ export default function UploadSection({ onUpload, error }) {
 
   {/* Right Box: Schema Preview Container */}
   <div className="w-full md:w-1/2 p-4 sm:p-6 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col min-w-0">
-    <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-3">Expected JSON Schema</h3>
-    <pre className="text-[10px] sm:text-xs bg-slate-100 p-4 rounded-lg overflow-x-auto text-slate-700 whitespace-pre-wrap md:whitespace-pre break-words md:break-normal">
-{`{
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <h3 className="text-base sm:text-lg font-bold text-slate-900">Instructions</h3>
+      <button
+        type="button"
+        onClick={() => setShowSchemaPreview(prevShowSchemaPreview => !prevShowSchemaPreview)}
+        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+        aria-label={showSchemaPreview ? 'Hide instructions' : 'Show instructions'}
+        aria-expanded={showSchemaPreview}
+      >
+        {showSchemaPreview ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+      </button>
+    </div>
+
+    {showSchemaPreview && (
+      <pre className="max-h-80 overflow-auto text-[10px] sm:text-xs bg-slate-100 p-4 rounded-lg text-slate-700 whitespace-pre-wrap md:whitespace-pre break-words md:break-normal">
+{`
+
+Step 1 (Build Resume)
+Build Your resume add as per the given sections
+
+Step 2 (Download Resume )
+Download the Resume docx file.
+Download the json file for reusing your details (Important)
+
+Step 3 (Edit Resume)
+Upload the JSON file else go for step 1 & 2
+Start modifying and then step 2
+
+JSON schmea below.
+{
+'
+-- If you already have a json file with the following schema
+
   "name": "Your Name",
   "address": "City, Country",
   "phone": "+1234567890",
@@ -42,7 +75,8 @@ export default function UploadSection({ onUpload, error }) {
   "education": [{"school": "", "date": "", "details": ""}],
   "miscellaneous": [{"type": "description"}]
 }`}
-    </pre>
+      </pre>
+    )}
   </div>
 </div>
   );

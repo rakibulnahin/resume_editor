@@ -1,4 +1,4 @@
-import { Plus, X, Download } from 'lucide-react';
+import { Plus, X, Download, Hammer } from 'lucide-react';
 import { getSkillValues } from '../utils/resumeData';
 import { InputField, TextAreaField } from './FormFields';
 import SectionCard from './SectionCard';
@@ -84,6 +84,8 @@ export default function ResumeEditor({
 
   return (
     <div className="space-y-4">
+      
+      <div className='font-bold text-xl p-4 text-blue-900 flex'><Hammer className='mr-4'/> Start Customization / Building</div>
       <SectionCard
         title="Personal Information"
         isExpanded={expandedSections.name}
