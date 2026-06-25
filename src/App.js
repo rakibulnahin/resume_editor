@@ -31,6 +31,9 @@ function App() {
   const [expandedSections, setExpandedSections] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isMobile, setIsMobile] = useState(() => (
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  ));
 
   // Load from sessionStorage on mount
   useEffect(() => {
@@ -42,12 +45,31 @@ function App() {
         console.error('Failed to load resume:', e);
       }
     }
+    if(typeof window !== 'undefined' && window.innerWidth < 768){
+      setShowPreview(false)
+    }else{
+      setShowPreview(true)
+    }
+
   }, []);
 
   // Save to sessionStorage on change
   useEffect(() => {
     sessionStorage.setItem('resumeData', JSON.stringify(resumeData));
   }, [resumeData]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   const handleJsonUpload= useCallback((event) => {
       const file = event.target.files[0];
@@ -179,7 +201,7 @@ function App() {
     );
   };
 
-  const PreviewResume = ({ resumeData }) => {
+  const PreviewResume = ({ resumeData, isMobile }) => {
   return (
     <div className={`bg-white rounded-lg border border-slate-200 shadow-sm p-6 ${isMobile ? 'fixed inset-0 z-50 overflow-y-auto' : 'sticky top-20 h-fit'}`}>
       
@@ -379,15 +401,12 @@ function App() {
     
   }, [resumeData]);
 
-  // Detect mobile
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-900">Resume Builder</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Easy Customize</h1>
           <div className="flex gap-2">
 
             <button
@@ -406,21 +425,12 @@ function App() {
               <Download size={16} />
               {loading ? 'Generating...' : 'DOCX'}
             </button>
-            {isMobile && (
-              <button
-                onClick={() => setShowPreview(!showPreview)}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors text-sm"
-              >
-                {showPreview ? <EyeOff size={16} /> : <Eye size={16} />}
-                {showPreview ? 'Edit' : 'Preview'}
-              </button>
-            )}
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto p-4">
+      <main className="max-w-7xl mx-auto p-4 pb-20">
         <UploadSection onUpload={handleJsonUpload} error={error} />
 
         <div className={`grid gap-4 ${!isMobile && showPreview ? 'grid-cols-2' : 'grid-cols-1'}`}>
@@ -455,6 +465,17 @@ function App() {
           )}
         </div>
       </main>
+
+      {isMobile && (
+        <button
+          type="button"
+          onClick={() => setShowPreview(prevShowPreview => !prevShowPreview)}
+          className="fixed bottom-4 right-4 z-[60] flex items-center gap-2 rounded-full bg-purple-600 px-5 py-3 text-sm font-medium text-white shadow-lg transition-colors hover:bg-purple-700"
+        >
+          {showPreview ? <EyeOff size={18} /> : <Eye size={18} />}
+          {showPreview ? 'Edit' : 'Preview'}
+        </button>
+      )}
     </div>
   );
 };
