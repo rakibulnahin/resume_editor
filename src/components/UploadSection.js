@@ -1,30 +1,77 @@
-import { ChevronDown, ChevronUp, Upload } from 'lucide-react';
-import { useState } from 'react';
+import { Check, ChevronDown, ChevronUp, Copy, Upload } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { normalizeResumeData } from '../utils/resumeData';
 
-export default function UploadSection({ onUpload, error }) {
+export default function UploadSection({ resumeData, setResumeData, onUpload, error }) {
   const [showSchemaPreview, setShowSchemaPreview] = useState(true);
+  const [jsonText, setJsonText] = useState('');
+  const [jsonError, setJsonError] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    setJsonText(JSON.stringify(resumeData || {}, null, 2));
+    setJsonError('');
+  }, [resumeData]);
+
+  const handleJsonTextChange = (value) => {
+    setJsonText(value);
+
+    if (!setResumeData) return;
+
+    try {
+      const parsedData = JSON.parse(value);
+      setResumeData(normalizeResumeData(parsedData));
+      setJsonError('');
+    } catch (err) {
+      setJsonError('Invalid JSON. Resume data will update after the JSON is valid.');
+    }
+  };
+
+  const handleCopyJson = async () => {
+    try {
+      await navigator.clipboard.writeText(jsonText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      setJsonError('Unable to copy JSON from this browser.');
+    }
+  };
 
   return (
     <div className="m-4 md:m-8 flex flex-col md:flex-row max-w-6xl mx-auto gap-6">
-  {/* Left Box: Upload Drag/Drop Area */}
-  <div className="w-full md:w-1/2 rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50/50 p-6 sm:p-12 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors flex flex-col justify-center items-center">
-    <Upload size={48} className="mx-auto text-blue-600 mb-4" strokeWidth={1.5} />
-    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">Upload Your Resume JSON</h2>
-    <p className="text-sm sm:text-base text-slate-600 mb-6 max-w-sm mx-auto">
-      Select a JSON file with your resume data to get started editing and customizing.
-    </p>
-    <label className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium cursor-pointer transition-colors shadow-lg hover:shadow-xl text-sm sm:text-base">
-      <Upload size={18} />
-      Choose JSON File
-      <input
-        type="file"
-        accept=".json"
-        onChange={onUpload}
-        className="hidden"
-      />
-    </label>
-    {error && (
-      <p className="mt-4 text-red-600 text-sm font-medium">{error}</p>
+  {/* Left Box: Resume JSON Editor */}
+  <div className="w-full md:w-1/2 rounded-xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm flex flex-col min-w-0">
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <h2 className="text-base sm:text-lg font-bold text-slate-900">Resume JSON</h2>
+      <div className="flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          onClick={handleCopyJson}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900"
+        >
+          {copied ? <Check size={16} /> : <Copy size={16} />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+        <label className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs sm:text-sm font-medium text-white cursor-pointer transition-colors hover:bg-blue-700">
+          <Upload size={16} />
+          Upload
+          <input
+            type="file"
+            accept=".json"
+            onChange={onUpload}
+            className="hidden"
+          />
+        </label>
+      </div>
+    </div>
+    <textarea
+      value={jsonText}
+      onChange={(event) => handleJsonTextChange(event.target.value)}
+      spellCheck="false"
+      className="min-h-80 flex-1 resize-y rounded-lg border border-slate-300 bg-slate-950 px-4 py-3 font-mono text-xs leading-5 text-slate-100 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
+    />
+    {(error || jsonError) && (
+      <p className="mt-3 text-sm font-medium text-red-600">{error || jsonError}</p>
     )}
   </div>
 

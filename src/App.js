@@ -74,6 +74,7 @@ function App() {
   const handleJsonUpload= useCallback((event) => {
       const file = event.target.files[0];
       if (!file) return;
+      event.target.value = '';
   
       const reader = new FileReader();
       reader.onload = (loadEvent) => {
@@ -431,7 +432,7 @@ function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto p-4 pb-20">
-        <UploadSection onUpload={handleJsonUpload} error={error} />
+        <UploadSection resumeData = {resumeData} setResumeData={setResumeData} onUpload={handleJsonUpload} error={error} />
 
         <div className={`grid gap-4 ${!isMobile && showPreview ? 'grid-cols-2' : 'grid-cols-1'}`}>
           {/* Form Section */}
