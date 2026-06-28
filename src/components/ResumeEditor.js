@@ -225,6 +225,74 @@ export default function ResumeEditor({
         </SectionCard>
       )}
 
+      {Array.isArray(resumeData.projects) && (
+        <SectionCard
+          title="Projects"
+          isExpanded={expandedSections.projects}
+          onToggle={() => toggleSection('projects')}
+          itemCount={resumeData.projects.length}
+        >
+          <div className="space-y-4">
+            {resumeData.projects.map((project, index) => (
+              <div key={index} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex items-start justify-between mb-3">
+                  <h4 className="font-semibold text-slate-900">Project {index + 1}</h4>
+                  <button
+                    onClick={() => removeArrayItem('projects', index)}
+                    className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <InputField
+                  label="Project Name"
+                  value={project.name || ''}
+                  onChange={(value) => handleDataChange(`projects.${index}.name`, value)}
+                  size="small"
+                />
+                <div className="mt-3">
+                  <label className="text-xs font-bold text-slate-700 block mb-2">Descriptions</label>
+                  <div className="space-y-2">
+                    {Array.isArray(project.description) && project.description.map((description, descriptionIndex) => (
+                      <div key={descriptionIndex} className="flex gap-2">
+                        <input
+                          type="text"
+                          value={description}
+                          onChange={(event) => handleDataChange(`projects.${index}.description.${descriptionIndex}`, event.target.value)}
+                          className="flex-1 px-3 py-2 text-xs border border-slate-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="Add description"
+                        />
+                        <button
+                          onClick={() => {
+                            const newDescriptions = project.description.filter((_, itemIndex) => itemIndex !== descriptionIndex);
+                            handleDataChange(`projects.${index}.description`, newDescriptions);
+                          }}
+                          className="text-red-500 hover:bg-red-50 p-2 rounded transition-colors"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => handleDataChange(`projects.${index}.description`, [...(project.description || []), ''])}
+                      className="text-xs text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                    >
+                      <Plus size={14} /> Add Description
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            <button
+              onClick={() => addArrayItem('projects', { name: '', description: [''] })}
+              className="w-full py-2 px-4 border-2 border-dashed border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-medium flex items-center justify-center gap-2"
+            >
+              <Plus size={18} /> Add Project
+            </button>
+          </div>
+        </SectionCard>
+      )}
+
       {Array.isArray(resumeData.skills) && (
         <SectionCard
           title="Skills"
