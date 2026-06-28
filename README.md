@@ -5,9 +5,22 @@
 4. Create once use multiple times
 5. #### Mobile friendly
 
-# Important this app does not work with pdf/word document (YET)
-1. In this website if you are customizing your resume you need to upload a "JSON file"
-2. 2-step process
+# Smart Import — now supports PDF / Word / text
+1. You can still bring a JSON file, but you can now also import an existing **PDF**, **DOCX**, or **plain text** resume.
+2. The text is extracted in your browser and converted into the JSON structure by AI — review and edit before using.
+3. 2-step process
+
+## What's new
+
+- **AI assistant (Bring-Your-Own-Key):** add your own API key (Gemini, OpenRouter, Groq, Anthropic, OpenAI, or any OpenAI-compatible endpoint) in **AI Settings**. The key is stored **only in your browser** (localStorage) and used to call the provider directly — nothing goes to any server.
+  - **Tailor to Job Description:** paste a job post and the AI rewrites wording/ordering to match it (without inventing facts).
+  - **Improve a bullet/summary:** the ✨ button next to descriptions and the profile rewrites text (Impact / Concise / Senior tone).
+- **Smart Import:** turn an existing PDF/DOCX/TXT resume into editable JSON.
+- **Document themes:** pick from multiple styles (Classic Blue, Minimal Mono, Modern Teal, Elegant Serif) for both DOCX and PDF.
+- **PDF export:** download a clean, ATS-friendly PDF (real selectable text) in addition to DOCX and JSON.
+- **My Resumes:** save multiple named versions ("Frontend role", "PM role") locally and switch between them. Your in-progress resume now also survives a tab close (localStorage instead of sessionStorage).
+
+> Privacy note: the app stays backend-free. AI calls go straight from your browser to your chosen provider using your own key.
 
 # Step 1 
 Home page -

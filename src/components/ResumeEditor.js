@@ -1,19 +1,19 @@
-import { Plus, X, Download, Hammer } from 'lucide-react';
+import { Plus, X, Hammer } from 'lucide-react';
 import { getSkillValues } from '../utils/resumeData';
 import { InputField, TextAreaField } from './FormFields';
 import SectionCard from './SectionCard';
+import AiImproveButton from './AiImproveButton';
 import React, { useCallback, useState } from 'react';
 
 export default function ResumeEditor({
   resumeData,
-  setResumeData
+  setResumeData,
+  onNeedsKey,
 }) 
 {
 
-  // const [presumeData, setResumeData] = useState(resumeData);
-  const [error, setError] = useState('');
   const [expandedSections, setExpandedSections] = useState({});
-  const [lastUpdated, setLastUpdated] = useState(null);
+  const [, setLastUpdated] = useState(null);
 
   const handleDataChange = useCallback((path, value) => {
     setResumeData((previousData) => {
@@ -48,7 +48,7 @@ export default function ResumeEditor({
       return updated;
     });
     setLastUpdated(new Date());
-  }, []);
+  }, [setResumeData]);
 
   const toggleSection = (sectionName) => {
     setExpandedSections((previousSections) => ({
@@ -98,7 +98,15 @@ export default function ResumeEditor({
           <InputField label="Address" value={resumeData.address || ''} onChange={(value) => handleDataChange('address', value)} />
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4 relative">
+          <div className="absolute right-0 top-0 z-10">
+            <AiImproveButton
+              text={resumeData.profile || ''}
+              mode="profile"
+              onResult={(value) => handleDataChange('profile', value)}
+              onNeedsKey={onNeedsKey}
+            />
+          </div>
           <TextAreaField
             label="Professional Profile"
             value={resumeData.profile || ''}
@@ -194,6 +202,12 @@ export default function ResumeEditor({
                           className="flex-1 px-3 py-2 text-xs border border-slate-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="Add description"
                         />
+                        <AiImproveButton
+                          text={description}
+                          context={[experience.position, experience.company].filter(Boolean).join(' at ')}
+                          onResult={(value) => handleDataChange(`experience.${index}.description.${descriptionIndex}`, value)}
+                          onNeedsKey={onNeedsKey}
+                        />
                         <button
                           onClick={() => {
                             const newDescriptions = experience.description.filter((_, itemIndex) => itemIndex !== descriptionIndex);
@@ -261,6 +275,12 @@ export default function ResumeEditor({
                           onChange={(event) => handleDataChange(`projects.${index}.description.${descriptionIndex}`, event.target.value)}
                           className="flex-1 px-3 py-2 text-xs border border-slate-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="Add description"
+                        />
+                        <AiImproveButton
+                          text={description}
+                          context={project.name ? `Project: ${project.name}` : ''}
+                          onResult={(value) => handleDataChange(`projects.${index}.description.${descriptionIndex}`, value)}
+                          onNeedsKey={onNeedsKey}
                         />
                         <button
                           onClick={() => {

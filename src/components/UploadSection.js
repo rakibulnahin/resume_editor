@@ -1,8 +1,8 @@
-import { Check, ChevronDown, ChevronUp, Copy, Upload } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Copy, Upload, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { normalizeResumeData } from '../utils/resumeData';
 
-export default function UploadSection({ resumeData, setResumeData, onUpload, error }) {
+export default function UploadSection({ resumeData, setResumeData, onUpload, error, onSmartImport }) {
   const [showSchemaPreview, setShowSchemaPreview] = useState(true);
   const [jsonText, setJsonText] = useState('');
   const [jsonError, setJsonError] = useState('');
@@ -44,6 +44,16 @@ export default function UploadSection({ resumeData, setResumeData, onUpload, err
     <div className="mb-3 flex items-center justify-between gap-3">
       <h2 className="text-base sm:text-lg font-bold text-slate-900">Resume JSON</h2>
       <div className="flex shrink-0 items-center gap-2">
+        {onSmartImport && (
+          <button
+            type="button"
+            onClick={onSmartImport}
+            className="inline-flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-xs sm:text-sm font-medium text-purple-700 transition-colors hover:bg-purple-100"
+          >
+            <Sparkles size={16} />
+            Import PDF/Word
+          </button>
+        )}
         <button
           type="button"
           onClick={handleCopyJson}

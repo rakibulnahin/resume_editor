@@ -1,33 +1,48 @@
-import { Document, Packer, Paragraph, HeadingLevel, TextRun, ExternalHyperlink, AlignmentType, BorderStyle, Table, TableCell, TableRow, WidthType, VerticalAlign } from 'docx';
-import { space } from 'postcss/lib/list';
+import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, BorderStyle, Table, TableCell, TableRow, WidthType } from 'docx';
+import { getTheme, hexForDocx, DEFAULT_THEME_ID } from './themes';
 
 /**
  * Generate a professional resume DOCX document from JSON data
  * @param {Object} resumeData - Resume data object
+ * @param {string} themeId - Theme preset id (see themes.js)
  * @returns {Promise<Document>} - docx Document object
  */
 
-function section_title(title){
-  return {
-        spacing: { before: 120, after: 80 },
-        size: 24,
-        shading: { fill: 'E8E8E8' },
-        "children": [
-          
-          new TextRun({
-            text: title,
-            bold: true,
-            size: 24
-          }),
-        ],
+function section_title(title, theme){
+  const options = {
+    spacing: { before: 160, after: 80 },
+    border: {
+      bottom: {
+        color: hexForDocx(theme.colors.accent),
+        space: 2,
+        style: BorderStyle.SINGLE,
+        size: 6,
+      },
+    },
+    children: [
+      new TextRun({
+        text: title,
+        bold: true,
+        size: theme.sectionSizePt * 2,
+        color: hexForDocx(theme.colors.sectionHeading),
+        font: theme.headingFont,
+      }),
+    ],
+  };
 
-      }
+  if (theme.sectionShaded) {
+    options.shading = { fill: hexForDocx(theme.colors.sectionBg) };
+  }
+
+  return options;
 }
 
-async function generateResume(resumeData) {
+async function generateResume(resumeData, themeId = DEFAULT_THEME_ID) {
+  const theme = getTheme(themeId);
+  const bodySize = theme.bodySizePt * 2;
   const sections = [];
 
-  // Header - Name with blue underline
+  // Header - Name with accent underline
   if (resumeData.name) {
     sections.push(
       new Paragraph({
@@ -37,14 +52,14 @@ async function generateResume(resumeData) {
           new TextRun({
             text: resumeData.name,
             bold: true,
-            size: 56,                 // 16pt font size
-            font: "Calibri",          // Change to match your template's typography
-            color: "1A365D",          // Deep dark blue color hex
+            size: theme.nameSizePt * 2,
+            font: theme.headingFont,
+            color: hexForDocx(theme.colors.name),
           }),
         ],
         border: {
           bottom: {
-            color: "3182CE",          // Slightly lighter blue line color hex
+            color: hexForDocx(theme.colors.accent),
             space: 8,                 // Distance (padding) between the text and the line
             style: BorderStyle.SINGLE,
             size: 6,                  // Line thickness (measured in 1/8 pt; 6 = 0.75pt thick)
@@ -67,9 +82,9 @@ async function generateResume(resumeData) {
         "children": [
           new TextRun({
             text: contactLine1.join(' | '),
-            size: 22,                 // 12pt font size
-            font: "Times New Roman",          // Change to match your template's typography
-            // color: "1A365D",          // Deep dark blue color hex
+            size: bodySize,
+            font: theme.bodyFont,
+            color: hexForDocx(theme.colors.text),
           }),
         ]
       })
@@ -81,11 +96,11 @@ async function generateResume(resumeData) {
 
   if(Array.isArray(resumeData.contacts) && resumeData.contacts.length>0){
     resumeData.contacts.forEach(contact => {
-      if(contact.annotation != ""){
+      if (!contact || !contact.link) return;
+      if (contact.annotation) {
         contactLine2.push(`${contact.annotation}: ${contact.link}`)
-      }else{
+      } else {
         contactLine2.push(`${contact.link}`)
-
       }
     });
   }
@@ -97,10 +112,10 @@ async function generateResume(resumeData) {
         spacing: { before:80, after: 80 },
         "children": [
           new TextRun({
-          text: contactLine2.join('  |  '),
-            size: 22,                 // 12pt font size
-            font: "Times New Roman",          // Change to match your template's typography
-            // color: "1A365D",          // Deep dark blue color hex
+            text: contactLine2.join('  |  '),
+            size: bodySize,
+            font: theme.bodyFont,
+            color: hexForDocx(theme.colors.text),
           }),
         ]
       })
@@ -111,23 +126,35 @@ async function generateResume(resumeData) {
   if (resumeData.address) {
     sections.push(
       new Paragraph({
-        text: `Address: ${resumeData.address}`,
+        children: [
+          new TextRun({
+            text: `Address: ${resumeData.address}`,
+            size: bodySize,
+            font: theme.bodyFont,
+            color: hexForDocx(theme.colors.text),
+          }),
+        ],
         spacing: { after: 200 },
-        size: 20
       })
     );
   }
 
-  // Profile Section with gray background
+  // Profile Section
   if (resumeData.profile && resumeData.profile.trim()) {
     sections.push(
-      new Paragraph(section_title("PROFILE"))
+      new Paragraph(section_title("PROFILE", theme))
     );
     sections.push(
       new Paragraph({
-        text: resumeData.profile,
+        children: [
+          new TextRun({
+            text: resumeData.profile,
+            size: bodySize,
+            font: theme.bodyFont,
+            color: hexForDocx(theme.colors.text),
+          }),
+        ],
         spacing: { after: 200 },
-        size: 20,
         alignment: AlignmentType.LEFT
       })
     );
@@ -136,7 +163,7 @@ async function generateResume(resumeData) {
   // Work Experience Section
   if (Array.isArray(resumeData.experience) && resumeData.experience.length > 0) {
     sections.push(
-      new Paragraph(section_title("WORK EXPERIENCE"))
+      new Paragraph(section_title("WORK EXPERIENCE", theme))
     );
 
     resumeData.experience.forEach((job, index) => {
@@ -145,10 +172,6 @@ async function generateResume(resumeData) {
         .filter(Boolean)
         .join(' | ');
 
-      const locationDate = [job.address, job.date]
-        .filter(Boolean)
-        .join(' | ');
-      
       if (positionCompany){
         sections.push(
           new Table({
@@ -177,11 +200,11 @@ async function generateResume(resumeData) {
                         alignment: AlignmentType.LEFT, // Aligns content to the left
                         children: [
                           new TextRun({
-                            text: `${job.position} | ${job.company}`,
+                            text: [job.position, job.company].filter(Boolean).join(' | '),
                             bold: true,
-                            size: 22,       // 12pt font size
-                            font: "Arial",
-                            color: "0066CC", // Dark blue color hex
+                            size: theme.sectionSizePt * 2,
+                            font: theme.headingFont,
+                            color: hexForDocx(theme.colors.jobTitle),
                           }),
                         ],
                       }),
@@ -196,10 +219,10 @@ async function generateResume(resumeData) {
                         alignment: AlignmentType.RIGHT, // Forces text growth towards the LEFT
                         children: [
                           new TextRun({
-                            text: `${job.address} | ${job.date}`,
-                            size: 20,       // 11pt font size
-                            font: "Arial",
-                            color: "0066CC", // Lighter accent blue color hex
+                            text: [job.address, job.date].filter(Boolean).join(' | '),
+                            size: bodySize,
+                            font: theme.bodyFont,
+                            color: hexForDocx(theme.colors.jobMeta),
                           }),
                         ],
                       }),
@@ -214,17 +237,8 @@ async function generateResume(resumeData) {
       
 
 
-      // Subtitle/Description line
-      if (job.company) {
-        sections.push(
-          new Paragraph({
-            text: job.address || '',
-            italics: true,
-            spacing: { before: 100 , after: 100 },
-            size: 20
-          })
-        );
-      }
+      // Small gap between the title row and the bullet points
+      sections.push(new Paragraph({ text: '', spacing: { after: 40 } }));
 
       // Descriptions/Achievements as bullet points
       if (Array.isArray(job.description)) {
@@ -232,10 +246,11 @@ async function generateResume(resumeData) {
           if (desc && desc.trim()) {
             sections.push(
               new Paragraph({
-                text: desc,
+                children: [
+                  new TextRun({ text: desc, size: bodySize, font: theme.bodyFont, color: hexForDocx(theme.colors.text) }),
+                ],
                 bullet: { level: 0 },
                 spacing: { after: 80 },
-                size: 20
               })
             );
           }
@@ -251,7 +266,7 @@ async function generateResume(resumeData) {
   // Projects Section
   if (Array.isArray(resumeData.projects) && resumeData.projects.length > 0) {
     sections.push(
-      new Paragraph(section_title("PROJECTS | PERSONAL WORK"))
+      new Paragraph(section_title("PROJECTS | PERSONAL WORK", theme))
     );
 
     resumeData.projects.forEach((project, index) => {
@@ -259,41 +274,36 @@ async function generateResume(resumeData) {
         sections.push(
           new Paragraph({
             spacing: { before: 80, after: 60 },
-            size: 22,
             children: [
               new TextRun({
                 text: project.name,
-                bold: true
+                bold: true,
+                size: bodySize,
+                font: theme.headingFont,
+                color: hexForDocx(theme.colors.jobTitle),
               })
             ]
           })
         );
       }
 
-      // Descriptions as paragraph text (not bullets)
-      if (Array.isArray(project.description)) {
-        project.description.forEach(desc => {
-          if (desc && desc.trim()) {
-            sections.push(
-              new Paragraph({
-                text: desc,
-                spacing: { after: 100 },
-                size: 20,
-                alignment: AlignmentType.JUSTIFIED
-              })
-            );
-          }
-        });
-      } else if (project.description && project.description.trim()) {
-        sections.push(
-          new Paragraph({
-            text: project.description,
-            spacing: { after: 100 },
-            size: 20,
-            alignment: AlignmentType.JUSTIFIED
-          })
-        );
-      }
+      const projectDescriptions = Array.isArray(project.description)
+        ? project.description
+        : (project.description ? [project.description] : []);
+
+      projectDescriptions.forEach(desc => {
+        if (desc && desc.trim()) {
+          sections.push(
+            new Paragraph({
+              children: [
+                new TextRun({ text: desc, size: bodySize, font: theme.bodyFont, color: hexForDocx(theme.colors.text) }),
+              ],
+              spacing: { after: 100 },
+              alignment: AlignmentType.JUSTIFIED
+            })
+          );
+        }
+      });
 
       if (index < resumeData.projects.length - 1) {
         sections.push(new Paragraph({ text: '', spacing: { after: 80 } }));
@@ -304,26 +314,20 @@ async function generateResume(resumeData) {
   // Skills Section
   if (Array.isArray(resumeData.skills) && resumeData.skills.length > 0) {
     sections.push(
-      new Paragraph(section_title("SKILLS"))
+      new Paragraph(section_title("SKILLS", theme))
     );
 
     resumeData.skills.forEach((skillGroup) => {
-      let skillText = '';
-      let categoryName = '';
-
       // Handle new schema (field)
       if (skillGroup.field) {
         const items = Array.isArray(skillGroup.field)
           ? skillGroup.field.filter(Boolean).join(', ')
           : skillGroup.field;
-        
+
         sections.push(
           new Paragraph({
             children: [
-              new TextRun({
-                text: items,
-                size: 20
-              })
+              new TextRun({ text: items, size: bodySize, font: theme.bodyFont, color: hexForDocx(theme.colors.text) })
             ],
             bullet: { level: 0 },
             spacing: { after: 100 }
@@ -335,19 +339,12 @@ async function generateResume(resumeData) {
         const items = Array.isArray(skillGroup.value)
           ? skillGroup.value.filter(Boolean).join(', ')
           : skillGroup.value;
-        
+
         sections.push(
           new Paragraph({
             children: [
-              new TextRun({
-                text: skillGroup.type,
-                bold: true,
-                size: 20
-              }),
-              new TextRun({
-                text: ': ' + items,
-                size: 20
-              })
+              new TextRun({ text: skillGroup.type, bold: true, size: bodySize, font: theme.bodyFont, color: hexForDocx(theme.colors.text) }),
+              new TextRun({ text: ': ' + items, size: bodySize, font: theme.bodyFont, color: hexForDocx(theme.colors.text) })
             ],
             bullet: { level: 0 },
             spacing: { after: 100 }
@@ -357,47 +354,30 @@ async function generateResume(resumeData) {
     });
   }
 
-  // Education Section with table format
+  // Education Section
   if (Array.isArray(resumeData.education) && resumeData.education.length > 0) {
     sections.push(
-      new Paragraph(section_title("EDUCATION"))
+      new Paragraph(section_title("EDUCATION", theme))
     );
 
     resumeData.education.forEach((edu, index) => {
-      if (edu.school && edu.date) {
-        sections.push(
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: edu.school,
-                bold: true,
-                size: 20
-              }),
-              new TextRun({
-                text: "\n"+edu.date,
-                size: 18
-              })
-            ],
-            spacing: { after: 60 },
-          })
-        );
-      } else if (edu.school) {
-        sections.push(
-          new Paragraph({
-            text: edu.school,
-            bold: true,
-            spacing: { after: 60 },
-            size: 20
-          })
-        );
+      if (edu.school) {
+        const runs = [
+          new TextRun({ text: edu.school, bold: true, size: bodySize, font: theme.headingFont, color: hexForDocx(theme.colors.text) }),
+        ];
+        if (edu.date) {
+          runs.push(new TextRun({ text: edu.date, italics: true, break: 1, size: bodySize, font: theme.bodyFont, color: hexForDocx(theme.colors.jobMeta) }));
+        }
+        sections.push(new Paragraph({ children: runs, spacing: { after: 60 } }));
       }
 
       if (edu.details) {
         sections.push(
           new Paragraph({
-            text: edu.details,
+            children: [
+              new TextRun({ text: edu.details, size: bodySize, font: theme.bodyFont, color: hexForDocx(theme.colors.text) }),
+            ],
             spacing: { after: 100 },
-            size: 20
           })
         );
       }
@@ -414,16 +394,17 @@ async function generateResume(resumeData) {
 
     if (validItems.length > 0) {
       sections.push(
-        new Paragraph(section_title("ADDITIONAL INFORMATION"))
+        new Paragraph(section_title("ADDITIONAL INFORMATION", theme))
       );
 
       validItems.forEach(item => {
         sections.push(
           new Paragraph({
-            text: item.type,
+            children: [
+              new TextRun({ text: item.type, size: bodySize, font: theme.bodyFont, color: hexForDocx(theme.colors.text) }),
+            ],
             bullet: { level: 0 },
             spacing: { after: 80 },
-            size: 20
           })
         );
       });
@@ -436,7 +417,7 @@ async function generateResume(resumeData) {
       default: {
         document: {
           run: {
-            font: "Arial", // Sets the global default font to Arial
+            font: theme.bodyFont,
           },
         },
       },
@@ -467,8 +448,8 @@ async function generateResume(resumeData) {
  * @param {Object} resumeData - Resume data
  * @param {string} filename - Optional filename (defaults to name from resume)
  */
-export async function downloadResume(resumeData, filename = null) {
-  const doc = await generateResume(resumeData);
+export async function downloadResume(resumeData, filename = null, themeId = DEFAULT_THEME_ID) {
+  const doc = await generateResume(resumeData, themeId);
   const blob = await Packer.toBlob(doc);
 
   const fileName = filename || `${resumeData.name || 'resume'}.docx`;
