@@ -1,17 +1,33 @@
 import { Check, ChevronDown, ChevronUp, Copy, Upload, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { normalizeResumeData } from '../utils/resumeData';
+import { ensureResumeShape } from '../utils/resumeData';
 
 export default function UploadSection({ resumeData, setResumeData, onUpload, error, onSmartImport }) {
   const [showSchemaPreview, setShowSchemaPreview] = useState(true);
   const [jsonText, setJsonText] = useState('');
   const [jsonError, setJsonError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [jsonDirty, setJsonDirty] = useState(false);
 
   useEffect(() => {
     setJsonText(JSON.stringify(resumeData || {}, null, 2));
     setJsonError('');
+    setJsonDirty(false);
   }, [resumeData]);
+
+  const applyJsonToEditor = (value = jsonText) => {
+    if (!setResumeData) return false;
+    try {
+      const parsedData = JSON.parse(value);
+      setResumeData(ensureResumeShape(parsedData));
+      setJsonError('');
+      setJsonDirty(false);
+      return true;
+    } catch (err) {
+      setJsonError('Invalid JSON. Fix syntax errors, then click Apply to editor.');
+      return false;
+    }
+  };
 
   const handleJsonTextChange = (value) => {
     setJsonText(value);
@@ -20,10 +36,12 @@ export default function UploadSection({ resumeData, setResumeData, onUpload, err
 
     try {
       const parsedData = JSON.parse(value);
-      setResumeData(normalizeResumeData(parsedData));
+      setResumeData(ensureResumeShape(parsedData));
       setJsonError('');
+      setJsonDirty(false);
     } catch (err) {
-      setJsonError('Invalid JSON. Resume data will update after the JSON is valid.');
+      setJsonDirty(true);
+      setJsonError('Invalid JSON — fix errors, then click Apply to editor.');
     }
   };
 
@@ -38,12 +56,12 @@ export default function UploadSection({ resumeData, setResumeData, onUpload, err
   };
 
   return (
-    <div className="m-4 md:m-8 flex flex-col md:flex-row max-w-6xl mx-auto gap-6">
+    <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:gap-6">
   {/* Left Box: Resume JSON Editor */}
-  <div className="w-full md:w-1/2 rounded-xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm flex flex-col min-w-0">
-    <div className="mb-3 flex items-center justify-between gap-3">
-      <h2 className="text-base sm:text-lg font-bold text-slate-900">Resume JSON</h2>
-      <div className="flex shrink-0 items-center gap-2">
+  <div className="flex w-full min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:w-1/2">
+    <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <h2 className="text-base font-bold text-slate-900 sm:text-lg">Resume JSON</h2>
+      <div className="flex flex-wrap items-center gap-2">
         {onSmartImport && (
           <button
             type="button"
@@ -54,6 +72,13 @@ export default function UploadSection({ resumeData, setResumeData, onUpload, err
             Import PDF/Word
           </button>
         )}
+        <button
+          type="button"
+          onClick={() => applyJsonToEditor()}
+          className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs sm:text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-100"
+        >
+          Apply to editor
+        </button>
         <button
           type="button"
           onClick={handleCopyJson}
@@ -74,9 +99,15 @@ export default function UploadSection({ resumeData, setResumeData, onUpload, err
         </label>
       </div>
     </div>
+    {jsonDirty && !jsonError && (
+      <p className="mb-2 text-xs text-amber-700">JSON changed — click <strong>Apply to editor</strong> to update the form and preview.</p>
+    )}
     <textarea
       value={jsonText}
       onChange={(event) => handleJsonTextChange(event.target.value)}
+      onBlur={() => {
+        if (jsonDirty && !jsonError) applyJsonToEditor();
+      }}
       spellCheck="false"
       className="min-h-80 flex-1 resize-y rounded-lg border border-slate-300 bg-slate-950 px-4 py-3 font-mono text-xs leading-5 text-slate-100 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500"
     />
@@ -86,7 +117,7 @@ export default function UploadSection({ resumeData, setResumeData, onUpload, err
   </div>
 
   {/* Right Box: Schema Preview Container */}
-  <div className="w-full md:w-1/2 p-4 sm:p-6 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col min-w-0">
+  <div className="flex w-full min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:w-1/2">
     <div className="mb-3 flex items-center justify-between gap-3">
       <h3 className="text-base sm:text-lg font-bold text-slate-900">Instructions</h3>
       <button

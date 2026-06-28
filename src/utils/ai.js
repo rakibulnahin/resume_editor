@@ -1,59 +1,68 @@
 /**
- * Bring-Your-Own-Key (BYOK) AI client.
+ * Bring-Your-Own-Key (BYOK) AI client — browser-only, no backend.
  *
- * The app has no backend, so AI calls go straight from the browser to the
- * provider using a key the user pastes in (stored only in localStorage). This
- * keeps the project's "no signup / privacy" promise: the key never touches any
- * server we run.
- *
- * Provider reality check (CORS): Google Gemini, OpenRouter, Groq and Anthropic
- * allow direct browser calls; OpenAI usually blocks them. The UI nudges users
- * toward browser-friendly providers and surfaces CORS errors clearly.
+ * Verified OpenRouter free models (Jun 2026): openrouter.ai/collections/free-models
+ * Do NOT send response_format/json_object to OpenRouter free models — most reject
+ * or hang on it. Use prompt-based JSON + parseJsonFromText instead.
  */
 
 const CONFIG_KEY = 'resume_ai_config';
 
+/** Shared abort controller so UI can cancel in-flight requests. */
+let activeAbort = null;
+
+export function cancelActiveAiRequest() {
+  if (activeAbort) {
+    activeAbort.abort();
+    activeAbort = null;
+  }
+}
+
 export const PROVIDERS = {
   gemini: {
     id: 'gemini',
-    label: 'Google Gemini',
+    label: 'Google Gemini (recommended — fastest free)',
     type: 'gemini',
     defaultModel: 'gemini-2.0-flash',
     models: ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'],
     browserFriendly: true,
+    supportsJsonMode: true,
     keyHint: 'AIza…',
     getKeyUrl: 'https://aistudio.google.com/apikey',
-    note: 'Recommended — generous free tier and works directly from the browser.',
+    note: 'Free tier at Google AI Studio. Fastest reliable option — get a key in 30 seconds.',
   },
   openrouter: {
     id: 'openrouter',
     label: 'OpenRouter',
     type: 'openai',
     baseUrl: 'https://openrouter.ai/api/v1',
-    defaultModel: 'meta-llama/llama-3.3-70b-instruct:free',
+    defaultModel: 'openrouter/free',
     models: [
+      'openrouter/free',
+      'meta-llama/llama-3.2-3b-instruct:free',
       'meta-llama/llama-3.3-70b-instruct:free',
-      'google/gemini-2.0-flash-exp:free',
-      'mistralai/mistral-small-3.1-24b-instruct:free',
-      'google/gemini-2.0-flash-001',
-      'openai/gpt-4o-mini',
+      'google/gemma-4-26b-a4b-it:free',
+      'google/gemma-4-31b-it:free',
+      'openai/gpt-oss-120b:free',
     ],
     browserFriendly: true,
+    supportsJsonMode: false,
     keyHint: 'sk-or-…',
     getKeyUrl: 'https://openrouter.ai/keys',
-    note: 'One key, 200+ models. Tip: huge models (e.g. Nemotron 550B) on the free tier are very slow — pick a fast model like Llama 3.3 70B or Gemini Flash.',
+    note: 'Use "openrouter/free" to auto-pick an available free model. Avoid huge models (550B) — they queue for minutes.',
   },
   groq: {
     id: 'groq',
     label: 'Groq',
     type: 'openai',
     baseUrl: 'https://api.groq.com/openai/v1',
-    defaultModel: 'llama-3.3-70b-versatile',
-    models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
+    defaultModel: 'llama-3.1-8b-instant',
+    models: ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile'],
     browserFriendly: true,
+    supportsJsonMode: false,
     keyHint: 'gsk_…',
     getKeyUrl: 'https://console.groq.com/keys',
-    note: 'Very fast, free tier. Usually works from the browser.',
+    note: 'Very fast inference. Free tier available.',
   },
   anthropic: {
     id: 'anthropic',
@@ -63,21 +72,10 @@ export const PROVIDERS = {
     defaultModel: 'claude-3-5-haiku-latest',
     models: ['claude-3-5-haiku-latest', 'claude-3-5-sonnet-latest'],
     browserFriendly: true,
+    supportsJsonMode: false,
     keyHint: 'sk-ant-…',
     getKeyUrl: 'https://console.anthropic.com/settings/keys',
-    note: 'Supports direct browser access.',
-  },
-  openai: {
-    id: 'openai',
-    label: 'OpenAI',
-    type: 'openai',
-    baseUrl: 'https://api.openai.com/v1',
-    defaultModel: 'gpt-4o-mini',
-    models: ['gpt-4o-mini', 'gpt-4o'],
-    browserFriendly: false,
-    keyHint: 'sk-…',
-    getKeyUrl: 'https://platform.openai.com/api-keys',
-    note: 'May be blocked by CORS in the browser. Use a custom base URL/proxy if calls fail.',
+    note: 'Paid API. Supports direct browser access.',
   },
   custom: {
     id: 'custom',
@@ -87,9 +85,10 @@ export const PROVIDERS = {
     defaultModel: '',
     models: [],
     browserFriendly: true,
+    supportsJsonMode: false,
     keyHint: '',
     getKeyUrl: '',
-    note: 'Point at any OpenAI-compatible endpoint (LiteLLM, Ollama, Together, a proxy…).',
+    note: 'LiteLLM, Ollama (localhost), or any OpenAI-compatible endpoint.',
   },
 };
 
@@ -124,45 +123,75 @@ export function hasAiKey() {
   return Boolean(config && config.apiKey);
 }
 
-class AiError extends Error {}
+const AI_BANNER_KEY = 'resume_ai_banner_dismissed';
 
-function describeHttpError(status, bodyText) {
-  if (status === 401 || status === 403) {
-    return 'Authentication failed — please check that your API key is correct and active.';
-  }
-  if (status === 429) {
-    return 'Rate limit or quota reached for your key. Wait a moment or check your provider plan.';
-  }
-  if (status === 404) {
-    return 'Model or endpoint not found. Double-check the model name (and base URL for custom providers).';
-  }
-  return `Request failed (HTTP ${status}). ${bodyText ? bodyText.slice(0, 300) : ''}`.trim();
+export function shouldShowAiBanner() {
+  if (typeof window === 'undefined') return false;
+  return !hasAiKey() && !window.localStorage.getItem(AI_BANNER_KEY);
 }
 
-async function safeFetch(url, options, timeoutMs = 120000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+export function dismissAiBanner() {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(AI_BANNER_KEY, '1');
+}
+
+class AiError extends Error {}
+
+function parseErrorBody(bodyText) {
+  try {
+    const parsed = JSON.parse(bodyText);
+    return parsed?.error?.message || parsed?.message || bodyText;
+  } catch {
+    return bodyText;
+  }
+}
+
+function describeHttpError(status, bodyText) {
+  const detail = parseErrorBody(bodyText);
+  if (status === 401 || status === 403) {
+    return `Authentication failed — check your API key. ${detail ? detail.slice(0, 200) : ''}`.trim();
+  }
+  if (status === 429) {
+    return `Rate limit hit. Wait 30s or switch to Google Gemini (free, fast). ${detail ? detail.slice(0, 150) : ''}`.trim();
+  }
+  if (status === 404) {
+    return `Model not found: "${detail}". Pick a model from the dropdown or use openrouter/free.`;
+  }
+  if (status === 402) {
+    return 'OpenRouter credits required for this model. Use a :free model or add credits at openrouter.ai/settings/credits.';
+  }
+  return `Request failed (HTTP ${status}). ${detail ? String(detail).slice(0, 300) : ''}`.trim();
+}
+
+async function safeFetch(url, options, timeoutMs = 90000) {
+  cancelActiveAiRequest();
+  activeAbort = new AbortController();
+  const timer = setTimeout(() => activeAbort.abort(), timeoutMs);
   let response;
   try {
-    response = await fetch(url, { ...options, signal: controller.signal });
+    response = await fetch(url, {
+      ...options,
+      signal: activeAbort.signal,
+    });
   } catch (error) {
     if (error.name === 'AbortError') {
       throw new AiError(
-        `The request timed out after ${Math.round(timeoutMs / 1000)}s. The selected model is likely slow or busy — switch to a faster/smaller model (e.g. a Llama 3.3 70B or Gemini Flash) in AI Settings.`
+        `Timed out after ${Math.round(timeoutMs / 1000)}s. Try Google Gemini (fastest) or openrouter/free with a smaller model.`
       );
     }
-    // A network/TypeError here is almost always CORS or connectivity.
     throw new AiError(
-      'Could not reach the provider from the browser. This is usually a CORS block — try a browser-friendly provider (Gemini, OpenRouter, Groq) or a custom proxy base URL.'
+      'Network error — could not reach the provider. If using OpenAI directly, try Google Gemini or Groq instead (CORS-friendly).'
     );
   } finally {
     clearTimeout(timer);
+    activeAbort = null;
   }
+
   if (!response.ok) {
     let bodyText = '';
     try {
       bodyText = await response.text();
-    } catch (error) {
+    } catch {
       bodyText = '';
     }
     throw new AiError(describeHttpError(response.status, bodyText));
@@ -170,7 +199,7 @@ async function safeFetch(url, options, timeoutMs = 120000) {
   return response.json();
 }
 
-async function callOpenAiCompatible(config, { system, user, temperature, json, maxTokens }) {
+async function callOpenAiCompatible(config, { system, user, temperature, json, maxTokens, timeoutMs }) {
   const provider = getProvider(config.provider);
   const baseUrl = (config.baseUrl || provider.baseUrl || '').replace(/\/$/, '');
   if (!baseUrl) throw new AiError('Missing base URL for this provider.');
@@ -179,7 +208,6 @@ async function callOpenAiCompatible(config, { system, user, temperature, json, m
     'Content-Type': 'application/json',
     Authorization: `Bearer ${config.apiKey}`,
   };
-  // OpenRouter recommends these attribution headers.
   if (config.provider === 'openrouter' && typeof window !== 'undefined') {
     headers['HTTP-Referer'] = window.location.origin;
     headers['X-Title'] = 'Resume Editor';
@@ -194,18 +222,25 @@ async function callOpenAiCompatible(config, { system, user, temperature, json, m
     temperature: temperature ?? 0.4,
     max_tokens: maxTokens || 2048,
   };
-  if (json) body.response_format = { type: 'json_object' };
+  // Only OpenAI paid + some providers support json_object — NOT OpenRouter free models.
+  if (json && provider.supportsJsonMode) {
+    body.response_format = { type: 'json_object' };
+  }
 
-  const data = await safeFetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
+  const data = await safeFetch(
+    `${baseUrl}/chat/completions`,
+    { method: 'POST', headers, body: JSON.stringify(body) },
+    timeoutMs
+  );
 
-  return data?.choices?.[0]?.message?.content ?? '';
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content && content !== '') {
+    throw new AiError('Empty response from model. Try openrouter/free or Google Gemini.');
+  }
+  return content;
 }
 
-async function callGemini(config, { system, user, temperature, json, maxTokens }) {
+async function callGemini(config, { system, user, temperature, json, maxTokens, timeoutMs }) {
   const provider = getProvider('gemini');
   const model = config.model || provider.defaultModel;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(config.apiKey)}`;
@@ -220,49 +255,55 @@ async function callGemini(config, { system, user, temperature, json, maxTokens }
   };
   if (system) body.systemInstruction = { parts: [{ text: system }] };
 
-  const data = await safeFetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  const data = await safeFetch(
+    url,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+    timeoutMs
+  );
 
   const parts = data?.candidates?.[0]?.content?.parts || [];
-  return parts.map((part) => part.text || '').join('');
+  const text = parts.map((part) => part.text || '').join('');
+  if (!text) {
+    const blockReason = data?.candidates?.[0]?.finishReason || data?.promptFeedback?.blockReason;
+    throw new AiError(blockReason ? `Gemini blocked the response: ${blockReason}` : 'Empty response from Gemini.');
+  }
+  return text;
 }
 
-async function callAnthropic(config, { system, user, temperature, json, maxTokens }) {
+async function callAnthropic(config, { system, user, temperature, json, maxTokens, timeoutMs }) {
   const provider = getProvider('anthropic');
   const baseUrl = (config.baseUrl || provider.baseUrl).replace(/\/$/, '');
   const systemText = json
     ? `${system || ''}\nRespond with valid JSON only, no markdown fences.`.trim()
     : system;
 
-  const data = await safeFetch(`${baseUrl}/messages`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': config.apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
+  const data = await safeFetch(
+    `${baseUrl}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': config.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: config.model || provider.defaultModel,
+        max_tokens: maxTokens || 2048,
+        temperature: temperature ?? 0.4,
+        ...(systemText ? { system: systemText } : {}),
+        messages: [{ role: 'user', content: user }],
+      }),
     },
-    body: JSON.stringify({
-      model: config.model || provider.defaultModel,
-      max_tokens: maxTokens || 2048,
-      temperature: temperature ?? 0.4,
-      ...(systemText ? { system: systemText } : {}),
-      messages: [{ role: 'user', content: user }],
-    }),
-  });
+    timeoutMs
+  );
 
   const blocks = data?.content || [];
   return blocks.map((block) => block.text || '').join('');
 }
 
 /**
- * Main entry point. Routes to the configured provider and returns the model's
- * text output.
- * @param {{system?: string, user: string, temperature?: number, json?: boolean, maxTokens?: number}} params
- * @returns {Promise<string>}
+ * @param {{system?: string, user: string, temperature?: number, json?: boolean, maxTokens?: number, timeoutMs?: number}} params
  */
 export async function callAi(params) {
   const config = getAiConfig();
@@ -270,27 +311,25 @@ export async function callAi(params) {
     throw new AiError('No API key set. Open AI Settings and add your key first.');
   }
   const provider = getProvider(config.provider);
+  const timeoutMs = params.timeoutMs ?? (params.maxTokens > 1000 ? 90000 : 45000);
 
-  if (provider.type === 'gemini') return callGemini(config, params);
-  if (provider.type === 'anthropic') return callAnthropic(config, params);
-  return callOpenAiCompatible(config, params);
+  if (provider.type === 'gemini') return callGemini(config, { ...params, timeoutMs });
+  if (provider.type === 'anthropic') return callAnthropic(config, { ...params, timeoutMs });
+  return callOpenAiCompatible(config, { ...params, timeoutMs });
 }
 
-/** Extract a JSON object from a model response that may be wrapped in fences. */
 export function parseJsonFromText(text) {
   if (!text) throw new Error('Empty response from the model.');
   let cleaned = text.trim();
-  // Strip ```json ... ``` or ``` ... ``` fences.
   cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
   try {
     return JSON.parse(cleaned);
-  } catch (error) {
-    // Fall back to the first {...} block.
+  } catch {
     const start = cleaned.indexOf('{');
     const end = cleaned.lastIndexOf('}');
     if (start >= 0 && end > start) {
       return JSON.parse(cleaned.slice(start, end + 1));
     }
-    throw new Error('Could not parse JSON from the model response.');
+    throw new Error('Could not parse JSON from model response. Try Google Gemini or a smaller model.');
   }
 }

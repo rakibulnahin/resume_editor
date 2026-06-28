@@ -1,20 +1,35 @@
 import React, { useState } from 'react';
-import { X, Wand2, Loader2, AlertTriangle } from 'lucide-react';
-import { hasAiKey } from '../utils/ai';
+import { Wand2, Loader2, AlertTriangle } from 'lucide-react';
+import { hasAiKey, cancelActiveAiRequest } from '../utils/ai';
 import { tailorResume } from '../utils/aiActions';
-import { normalizeResumeData } from '../utils/resumeData';
+import { ensureResumeShape } from '../utils/resumeData';
+import Modal from './ui/Modal';
+import TailorCompare from './TailorCompare';
 
 /**
- * "Tailor to Job Description" modal.
- * Sends the current resume + a pasted job description to the AI and replaces
- * the working resume with a keyword-optimized version (same schema, same facts).
+ * "Tailor to Job Description" modal with before/after review step.
  */
-export default function TailorToJob({ open, onClose, resumeData, onApply, onNeedsKey }) {
+export default function TailorToJob({
+  open,
+  onClose,
+  resumeData,
+  onApply,
+  onNeedsKey,
+  templateId,
+}) {
   const [jobDescription, setJobDescription] = useState('');
-  const [status, setStatus] = useState('idle');
+  const [step, setStep] = useState('input'); // input | loading | compare
   const [error, setError] = useState('');
+  const [beforeData, setBeforeData] = useState(null);
+  const [afterData, setAfterData] = useState(null);
 
-  if (!open) return null;
+  const resetAndClose = () => {
+    setStep('input');
+    setError('');
+    setBeforeData(null);
+    setAfterData(null);
+    onClose();
+  };
 
   const handleTailor = async () => {
     setError('');
@@ -26,36 +41,95 @@ export default function TailorToJob({ open, onClose, resumeData, onApply, onNeed
       setError('Paste a job description first.');
       return;
     }
-    setStatus('loading');
+    setStep('loading');
+    const snapshot = JSON.parse(JSON.stringify(resumeData));
+    setBeforeData(snapshot);
     try {
-      const tailored = await tailorResume(resumeData, jobDescription.trim());
-      const normalized = normalizeResumeData(tailored);
-      onApply?.(normalized);
-      setStatus('idle');
-      setJobDescription('');
-      onClose();
+      const tailored = await tailorResume(snapshot, jobDescription.trim());
+      const normalized = ensureResumeShape(tailored);
+      setAfterData(normalized);
+      setStep('compare');
     } catch (err) {
-      setStatus('idle');
+      setStep('input');
       setError(err.message || 'Failed to tailor the resume.');
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" onMouseDown={onClose}>
-      <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-            <Wand2 size={18} className="text-purple-600" /> Tailor to Job Description
-          </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 p-1" aria-label="Close">
-            <X size={20} />
-          </button>
-        </div>
+  const handleUseAfter = () => {
+    onApply?.(afterData);
+    setJobDescription('');
+    setStep('input');
+    setBeforeData(null);
+    setAfterData(null);
+    onClose();
+  };
 
-        <div className="px-6 py-5 space-y-3">
+  const handleKeepBefore = () => {
+    setStep('input');
+    setAfterData(null);
+  };
+
+  const loading = step === 'loading';
+
+  const footer = step === 'input' ? (
+    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+      {loading ? (
+        <button
+          type="button"
+          onClick={() => {
+            cancelActiveAiRequest();
+            setStep('input');
+            setError('Cancelled.');
+          }}
+          className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg"
+        >
+          Cancel
+        </button>
+      ) : (
+        <span className="hidden sm:block" />
+      )}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <button
+          type="button"
+          onClick={resetAndClose}
+          className="w-full sm:w-auto px-4 py-2.5 text-sm font-medium border border-slate-300 rounded-lg hover:bg-slate-50"
+        >
+          Close
+        </button>
+        <button
+          type="button"
+          onClick={handleTailor}
+          disabled={loading}
+          className="flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50"
+        >
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
+          {loading ? 'Tailoring…' : 'Tailor my resume'}
+        </button>
+      </div>
+    </div>
+  ) : null;
+
+  return (
+    <Modal
+      open={open}
+      onClose={resetAndClose}
+      title={step === 'compare' ? 'Before & after' : 'Tailor to Job Description'}
+      icon={<Wand2 size={18} className="shrink-0 text-purple-600" />}
+      size={step === 'compare' ? 'full' : 'lg'}
+      zIndex={100}
+      footer={footer}
+    >
+      {step === 'compare' && beforeData && afterData ? (
+        <TailorCompare
+          before={beforeData}
+          after={afterData}
+          templateId={templateId}
+          onUseAfter={handleUseAfter}
+          onKeepBefore={handleKeepBefore}
+          onBack={() => setStep('input')}
+        />
+      ) : (
+        <div className="space-y-3">
           <p className="text-sm text-slate-600">
             Paste the job description. The AI rewrites your wording and ordering to match the role and surface
             relevant keywords — it never invents employers, dates, or degrees.
@@ -63,34 +137,26 @@ export default function TailorToJob({ open, onClose, resumeData, onApply, onNeed
 
           <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
             <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-            <span>This replaces your current wording. Tip: save a version in “My Resumes” first so you can revert.</span>
+            <span>Tip: save a version in “My Resumes” first so you can revert if needed.</span>
           </div>
 
           <textarea
             value={jobDescription}
             onChange={(event) => setJobDescription(event.target.value)}
             rows={10}
+            disabled={loading}
             placeholder="Paste the full job description here…"
-            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y"
+            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y disabled:opacity-60"
           />
 
           {error && <p className="text-sm text-red-600">{error}</p>}
+          {loading && (
+            <p className="text-xs text-slate-500">
+              AI is working… up to 90s. Cancel anytime, or switch to Google Gemini for speed.
+            </p>
+          )}
         </div>
-
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-200">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium border border-slate-300 rounded-lg hover:bg-slate-50">
-            Cancel
-          </button>
-          <button
-            onClick={handleTailor}
-            disabled={status === 'loading'}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50"
-          >
-            {status === 'loading' ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
-            {status === 'loading' ? 'Tailoring…' : 'Tailor my resume'}
-          </button>
-        </div>
-      </div>
-    </div>
+      )}
+    </Modal>
   );
 }

@@ -37,8 +37,120 @@ function section_title(title, theme){
   return options;
 }
 
+/** Sidebar layout DOCX — contact/skills/education left, experience right */
+function generateSidebarDoc(resumeData, theme) {
+  const bodySize = theme.bodySizePt * 2;
+  const sidebarColor = hexForDocx(theme.colors.sidebarBg);
+  const sidebarText = hexForDocx(theme.colors.sidebarText);
+
+  const sidebarParas = [];
+  const mainParas = [];
+
+  if (resumeData.name) {
+    sidebarParas.push(new Paragraph({
+      spacing: { after: 200 },
+      children: [new TextRun({ text: resumeData.name, bold: true, size: theme.nameSizePt * 2, color: sidebarText, font: theme.headingFont })],
+    }));
+  }
+  [resumeData.email, resumeData.phone, resumeData.address].filter(Boolean).forEach((line) => {
+    sidebarParas.push(new Paragraph({
+      children: [new TextRun({ text: line, size: bodySize, color: sidebarText, font: theme.bodyFont })],
+      spacing: { after: 60 },
+    }));
+  });
+  if (Array.isArray(resumeData.contacts)) {
+    resumeData.contacts.forEach((c) => {
+      if (!c.link) return;
+      const t = c.annotation ? `${c.annotation}: ${c.link}` : c.link;
+      sidebarParas.push(new Paragraph({
+        children: [new TextRun({ text: t, size: bodySize, color: sidebarText, font: theme.bodyFont })],
+        spacing: { after: 60 },
+      }));
+    });
+  }
+
+  if (resumeData.skills?.length) {
+    sidebarParas.push(new Paragraph({ children: [new TextRun({ text: 'SKILLS', bold: true, size: bodySize, color: sidebarText })], spacing: { before: 200, after: 80 } }));
+    resumeData.skills.forEach((g) => {
+      const items = (g.value || g.field || []).filter(Boolean).join(', ');
+      const label = g.type ? `${g.type}: ${items}` : items;
+      sidebarParas.push(new Paragraph({ children: [new TextRun({ text: label, size: bodySize, color: sidebarText })], spacing: { after: 60 } }));
+    });
+  }
+
+  if (resumeData.education?.length) {
+    sidebarParas.push(new Paragraph({ children: [new TextRun({ text: 'EDUCATION', bold: true, size: bodySize, color: sidebarText })], spacing: { before: 200, after: 80 } }));
+    resumeData.education.forEach((e) => {
+      sidebarParas.push(new Paragraph({
+        children: [
+          new TextRun({ text: e.school || '', bold: true, size: bodySize, color: sidebarText }),
+          new TextRun({ text: e.date ? `\n${e.date}` : '', size: bodySize - 2, color: sidebarText }),
+        ],
+        spacing: { after: 80 },
+      }));
+    });
+  }
+
+  if (resumeData.profile) {
+    mainParas.push(new Paragraph(section_title('ABOUT', theme)));
+    mainParas.push(new Paragraph({ children: [new TextRun({ text: resumeData.profile, size: bodySize, font: theme.bodyFont })], spacing: { after: 200 } }));
+  }
+  if (resumeData.experience?.length) {
+    mainParas.push(new Paragraph(section_title('EXPERIENCE', theme)));
+    resumeData.experience.forEach((job) => {
+      mainParas.push(new Paragraph({
+        children: [new TextRun({
+          text: [job.position, job.company].filter(Boolean).join(' · '),
+          bold: true, size: bodySize, color: hexForDocx(theme.colors.jobTitle), font: theme.headingFont,
+        })],
+        spacing: { after: 40 },
+      }));
+      if (job.date) {
+        mainParas.push(new Paragraph({ children: [new TextRun({ text: job.date, size: bodySize - 2, color: hexForDocx(theme.colors.jobMeta), italics: true })], spacing: { after: 60 } }));
+      }
+      (job.description || []).forEach((d) => {
+        if (d?.trim()) mainParas.push(new Paragraph({ children: [new TextRun({ text: d, size: bodySize })], bullet: { level: 0 }, spacing: { after: 40 } }));
+      });
+      mainParas.push(new Paragraph({ text: '', spacing: { after: 120 } }));
+    });
+  }
+
+  return new Document({
+    styles: { default: { document: { run: { font: theme.bodyFont } } } },
+    sections: [{
+      children: [
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          borders: {
+            top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
+            left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE },
+            insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE },
+          },
+          rows: [new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 32, type: WidthType.PERCENTAGE },
+                shading: { fill: sidebarColor },
+                children: sidebarParas.length ? sidebarParas : [new Paragraph({ text: '' })],
+              }),
+              new TableCell({
+                width: { size: 68, type: WidthType.PERCENTAGE },
+                children: mainParas.length ? mainParas : [new Paragraph({ text: '' })],
+              }),
+            ],
+          })],
+        }),
+      ],
+      properties: { page: { margins: { top: 720, right: 720, bottom: 720, left: 720 } } },
+    }],
+  });
+}
+
 async function generateResume(resumeData, themeId = DEFAULT_THEME_ID) {
   const theme = getTheme(themeId);
+  if (theme.layout === 'sidebar') {
+    return generateSidebarDoc(resumeData, theme);
+  }
   const bodySize = theme.bodySizePt * 2;
   const sections = [];
 

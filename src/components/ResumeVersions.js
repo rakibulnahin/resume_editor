@@ -85,7 +85,7 @@ export default function ResumeVersions({ resumeData, onLoad }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white border border-slate-200 rounded-xl shadow-xl z-[60] p-4">
+        <div className="absolute right-0 z-50 mt-2 w-80 max-w-[min(90vw,20rem)] rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
           <div className="flex gap-2 mb-3">
             <input
               type="text"

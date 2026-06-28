@@ -1,23 +1,16 @@
 import React, { useState } from 'react';
-import { X, Upload, FileText, Loader2, Sparkles } from 'lucide-react';
-import { hasAiKey } from '../utils/ai';
+import { Upload, FileText, Loader2, Sparkles } from 'lucide-react';
+import { hasAiKey, cancelActiveAiRequest } from '../utils/ai';
 import { parseResumeText } from '../utils/aiActions';
 import { extractTextFromFile } from '../utils/extractText';
-import { normalizeResumeData } from '../utils/resumeData';
+import { ensureResumeShape } from '../utils/resumeData';
+import Modal from './ui/Modal';
 
-/**
- * Smart Import: turn an existing PDF / Word / text resume into the app's JSON
- * schema using AI. This closes the README's biggest "not yet" gap while keeping
- * JSON as the source of truth — the file is only used to extract text, which
- * the AI converts into structured data the user can then edit.
- */
 export default function SmartImport({ open, onClose, onApply, onNeedsKey }) {
   const [rawText, setRawText] = useState('');
   const [fileName, setFileName] = useState('');
-  const [status, setStatus] = useState('idle'); // idle | extracting | parsing
+  const [status, setStatus] = useState('idle');
   const [error, setError] = useState('');
-
-  if (!open) return null;
 
   const handleFile = async (event) => {
     const file = event.target.files?.[0];
@@ -52,7 +45,7 @@ export default function SmartImport({ open, onClose, onApply, onNeedsKey }) {
     setStatus('parsing');
     try {
       const parsed = await parseResumeText(rawText.trim());
-      onApply?.(normalizeResumeData(parsed));
+      onApply?.(ensureResumeShape(parsed));
       setRawText('');
       setFileName('');
       setStatus('idle');
@@ -65,70 +58,90 @@ export default function SmartImport({ open, onClose, onApply, onNeedsKey }) {
 
   const busy = status !== 'idle';
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" onMouseDown={onClose}>
-      <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-            <Sparkles size={18} className="text-blue-600" /> Smart Import (PDF / Word / Text)
-          </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 p-1" aria-label="Close">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="px-6 py-5 space-y-4">
-          <p className="text-sm text-slate-600">
-            Upload an existing resume (<strong>.pdf</strong>, <strong>.docx</strong> or <strong>.txt</strong>) or
-            paste its text. The AI converts it into editable fields — review the extracted text first, then convert.
-          </p>
-
-          <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/50 p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
-            {status === 'extracting' ? (
-              <Loader2 size={28} className="text-blue-600 animate-spin" />
-            ) : (
-              <Upload size={28} className="text-blue-600" />
-            )}
-            <span className="text-sm font-medium text-slate-700">
-              {status === 'extracting' ? 'Reading file…' : 'Choose a PDF, DOCX or TXT file'}
-            </span>
-            {fileName && <span className="text-xs text-slate-500 flex items-center gap-1"><FileText size={12} /> {fileName}</span>}
-            <input type="file" accept=".pdf,.docx,.txt,.md" className="hidden" onChange={handleFile} disabled={busy} />
-          </label>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Extracted / pasted text (editable)
-            </label>
-            <textarea
-              value={rawText}
-              onChange={(event) => setRawText(event.target.value)}
-              rows={8}
-              placeholder="…or paste your resume text here"
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-            />
-          </div>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-        </div>
-
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-200">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium border border-slate-300 rounded-lg hover:bg-slate-50">
-            Cancel
-          </button>
-          <button
-            onClick={handleConvert}
-            disabled={busy || !rawText.trim()}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
-          >
-            {status === 'parsing' ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-            {status === 'parsing' ? 'Converting…' : 'Convert with AI'}
-          </button>
-        </div>
+  const footer = (
+    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+      {status === 'parsing' ? (
+        <button
+          type="button"
+          onClick={() => { cancelActiveAiRequest(); setStatus('idle'); setError('Cancelled.'); }}
+          className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg"
+        >
+          Cancel
+        </button>
+      ) : (
+        <span className="hidden sm:block" />
+      )}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full sm:w-auto px-4 py-2.5 text-sm font-medium border border-slate-300 rounded-lg hover:bg-slate-50"
+        >
+          Close
+        </button>
+        <button
+          type="button"
+          onClick={handleConvert}
+          disabled={busy || !rawText.trim()}
+          className="flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
+        >
+          {status === 'parsing' ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+          {status === 'parsing' ? 'Converting…' : 'Convert with AI'}
+        </button>
       </div>
     </div>
+  );
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Smart Import (PDF / Word / Text)"
+      icon={<Sparkles size={18} className="shrink-0 text-blue-600" />}
+      size="lg"
+      zIndex={100}
+      footer={footer}
+    >
+      <div className="space-y-4">
+        <p className="text-sm text-slate-600">
+          Upload an existing resume (<strong>.pdf</strong>, <strong>.docx</strong> or <strong>.txt</strong>) or
+          paste its text. The AI converts it into editable fields — review the extracted text first, then convert.
+        </p>
+
+        <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/50 p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+          {status === 'extracting' ? (
+            <Loader2 size={28} className="text-blue-600 animate-spin" />
+          ) : (
+            <Upload size={28} className="text-blue-600" />
+          )}
+          <span className="text-sm font-medium text-slate-700">
+            {status === 'extracting' ? 'Reading file…' : 'Choose a PDF, DOCX or TXT file'}
+          </span>
+          {fileName && <span className="text-xs text-slate-500 flex items-center gap-1"><FileText size={12} /> {fileName}</span>}
+          <input type="file" accept=".pdf,.docx,.txt,.md" className="hidden" onChange={handleFile} disabled={busy} />
+        </label>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">
+            Extracted / pasted text (editable)
+          </label>
+          <textarea
+            value={rawText}
+            onChange={(event) => setRawText(event.target.value)}
+            rows={8}
+            placeholder="…or paste your resume text here"
+            className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+          />
+        </div>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        {status === 'parsing' && (
+          <p className="text-xs text-slate-500">
+            Sending to AI… large resumes can take up to 90s. Use Google Gemini for fastest results.
+          </p>
+        )}
+      </div>
+    </Modal>
   );
 }
