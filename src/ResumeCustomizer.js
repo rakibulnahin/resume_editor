@@ -89,3 +89,50 @@ export default function OpenRouterChat() {
     </div>
   );
 }
+
+
+// from continuing conversation do not work on build or deploy application as i will work in local only change files needed and summarize the changes and its location with what changed
+
+// create another js file in the components folder so that it can be used 
+// as a component for the task below
+// in the header create a button "Tailor with AI" when the button is clicked 
+// it will show another screen upper part of screen will have a dropdown menu of 
+// multiple ai models and text area to write api key then a button "start tailor" 
+// that will send a request to openrouter with the resumeData and a expect a json 
+// of similar structure to resumeData or upload JSON
+
+// in the next part of the screen will show when the status of request 
+// "thinking" when the request is successsful and waiting for response 
+// "Sorry, bad request" when problem with request and also shows the reason for bad request
+// "Successfull" when the request and response is successsful and also shows the json response 
+
+// at the end of the section there will be a close button at the 
+// bottom right to close the screen and at the left of this button will be another
+// button "export tailored json" which if there is a response will be clickable 
+// else not and when the "export tailored json" is clicked if there is a json response 
+// will update the resumeData
+
+// Here is a highly condensed, token-optimized version of your request. It retains all logic, UI components, states, and data flows while stripping out filler words to save tokens.
+
+// ---
+
+// ### Optimized Prompt
+
+// Create a "Tailor with AI" header button. Clicking it opens a modal/screen with these sections:
+
+// **1. Configuration Section (Top):**
+
+// * Dropdown for AI models.
+// * Text area for API key.
+// * "Start Tailor" button: Sends request to OpenRouter with `resumeData`. Expects JSON matching `resumeData` structure.
+
+// **2. Status & Response Section (Middle):**
+
+// * **Loading:** Show "thinking" while waiting for response.
+// * **Error:** Show "Sorry, bad request" + error reason if request fails.
+// * **Success:** Show "Successful" + display the returned JSON response.
+
+// **3. Action Section (Bottom):**
+
+// * Left: "Export Tailored JSON" button. Disabled by default. Enabled only on Success. Clicking updates `resumeData` with the new JSON.
+// * Right: "Close" button to dismiss the screen.

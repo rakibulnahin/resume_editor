@@ -9,6 +9,7 @@ import { downloadJSON } from './utils/exportResume.js';
 import { exportToDocx } from './utils/exportResume.js';
 import { normalizeResumeData } from './utils/resumeData';
 import UploadSection from './components/UploadSection.js';
+import TailorWithAI from './components/TailorWithAI.js';
 
 
 
@@ -408,7 +409,11 @@ function App() {
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-slate-900">Easy Customize</h1>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
+            <TailorWithAI
+              resumeData={resumeData}
+              onApplyTailoredResume={setResumeData}
+            />
 
             <button
               onClick={callDownloadJSON}
