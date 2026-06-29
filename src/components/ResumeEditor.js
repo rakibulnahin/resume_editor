@@ -1,8 +1,88 @@
-import { Plus, X, Download, Hammer } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Plus, X, Hammer } from 'lucide-react';
 import { getSkillValues } from '../utils/resumeData';
 import { InputField, TextAreaField } from './FormFields';
 import SectionCard from './SectionCard';
 import React, { useCallback, useState } from 'react';
+
+function ArrayItemControls({
+  path,
+  index,
+  itemCount,
+  onMove,
+  onRemove,
+  removeButtonClassName = 'text-red-500 hover:bg-red-50 p-1 rounded transition-colors',
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => onMove(path, index, index - 1)}
+        disabled={index === 0}
+        className="rounded p-1 text-slate-500 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30"
+        title="Move up"
+      >
+        <ArrowUp size={16} />
+      </button>
+      <button
+        type="button"
+        onClick={() => onMove(path, index, index + 1)}
+        disabled={index === itemCount - 1}
+        className="rounded p-1 text-slate-500 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30"
+        title="Move down"
+      >
+        <ArrowDown size={16} />
+      </button>
+      <button
+        type="button"
+        onClick={onRemove}
+        className={removeButtonClassName}
+        title="Remove"
+      >
+        <X size={18} />
+      </button>
+    </div>
+  );
+}
+
+function ArrayItemCard({
+  path,
+  index,
+  itemCount,
+  title,
+  isExpanded,
+  onToggle,
+  onMove,
+  onRemove,
+  children,
+  className = 'p-4 bg-slate-50 rounded-lg border border-slate-200',
+}) {
+  return (
+    <div className={className}>
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex flex-1 items-center gap-2 text-left font-semibold text-slate-900 transition-colors hover:text-blue-700"
+        >
+          {isExpanded ? (
+            <ChevronUp size={18} className="text-slate-600" />
+          ) : (
+            <ChevronDown size={18} className="text-slate-600" />
+          )}
+          <span>{title}</span>
+        </button>
+        <ArrayItemControls
+          path={path}
+          index={index}
+          itemCount={itemCount}
+          onMove={onMove}
+          onRemove={onRemove}
+        />
+      </div>
+      {isExpanded && children}
+    </div>
+  );
+}
 
 export default function ResumeEditor({
   resumeData,
@@ -13,6 +93,7 @@ export default function ResumeEditor({
   // const [presumeData, setResumeData] = useState(resumeData);
   const [error, setError] = useState('');
   const [expandedSections, setExpandedSections] = useState({});
+  const [expandedArrayItems, setExpandedArrayItems] = useState({});
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const handleDataChange = useCallback((path, value) => {
@@ -57,6 +138,14 @@ export default function ResumeEditor({
     }));
   };
 
+  const toggleArrayItem = (path, index) => {
+    const itemKey = `${path}.${index}`;
+    setExpandedArrayItems((previousItems) => ({
+      ...previousItems,
+      [itemKey]: previousItems[itemKey] === false,
+    }));
+  };
+
   const addArrayItem = (path, template) => {
     setResumeData((previousData) => {
       const updated = JSON.parse(JSON.stringify(previousData));
@@ -75,6 +164,27 @@ export default function ResumeEditor({
       return updated;
     });
     setLastUpdated(new Date());
+  };
+
+  const moveArrayItem = (path, fromIndex, toIndex) => {
+    setResumeData((previousData) => {
+      const updated = JSON.parse(JSON.stringify(previousData));
+      const collection = getNestedValue(updated, path);
+
+      if (!Array.isArray(collection) || toIndex < 0 || toIndex >= collection.length) {
+        return previousData;
+      }
+
+      const [movedItem] = collection.splice(fromIndex, 1);
+      collection.splice(toIndex, 0, movedItem);
+      return updated;
+    });
+    setLastUpdated(new Date());
+  };
+
+  const isArrayItemExpanded = (path, index) => {
+    const itemKey = `${path}.${index}`;
+    return expandedArrayItems[itemKey] !== false;
   };
 
   function getNestedValue(data, path) {
@@ -120,8 +230,19 @@ export default function ResumeEditor({
             </div>
             <div className="space-y-3">
               {resumeData.contacts.map((contact, index) => (
-                <div key={index} className="flex gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                  <div className="flex-1 space-y-2">
+                <ArrayItemCard
+                  key={index}
+                  path="contacts"
+                  index={index}
+                  itemCount={resumeData.contacts.length}
+                  title={`Contact ${index + 1}`}
+                  isExpanded={isArrayItemExpanded('contacts', index)}
+                  onToggle={() => toggleArrayItem('contacts', index)}
+                  onMove={moveArrayItem}
+                  onRemove={() => removeArrayItem('contacts', index)}
+                  className="p-3 bg-slate-50 rounded-lg border border-slate-200"
+                >
+                  <div className="space-y-2">
                     <InputField
                       label="Annotation"
                       value={contact.annotation || ''}
@@ -144,13 +265,7 @@ export default function ResumeEditor({
                       <span className="text-slate-700">Show Annotation</span>
                     </label>
                   </div>
-                  <button
-                    onClick={() => removeArrayItem('contacts', index)}
-                    className="text-red-500 hover:bg-red-50 p-2 rounded transition-colors"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
+                </ArrayItemCard>
               ))}
             </div>
           </div>
@@ -166,16 +281,17 @@ export default function ResumeEditor({
         >
           <div className="space-y-4">
             {resumeData.experience.map((experience, index) => (
-              <div key={index} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="flex items-start justify-between mb-3">
-                  <h4 className="font-semibold text-slate-900">Position {index + 1}</h4>
-                  <button
-                    onClick={() => removeArrayItem('experience', index)}
-                    className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
+              <ArrayItemCard
+                key={index}
+                path="experience"
+                index={index}
+                itemCount={resumeData.experience.length}
+                title={`Position ${index + 1}`}
+                isExpanded={isArrayItemExpanded('experience', index)}
+                onToggle={() => toggleArrayItem('experience', index)}
+                onMove={moveArrayItem}
+                onRemove={() => removeArrayItem('experience', index)}
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <InputField label="Company" value={experience.company || ''} onChange={(value) => handleDataChange(`experience.${index}.company`, value)} size="small" />
                   <InputField label="Position" value={experience.position || ''} onChange={(value) => handleDataChange(`experience.${index}.position`, value)} size="small" />
@@ -187,22 +303,24 @@ export default function ResumeEditor({
                   <div className="space-y-2">
                     {Array.isArray(experience.description) && experience.description.map((description, descriptionIndex) => (
                       <div key={descriptionIndex} className="flex gap-2">
-                        <input
-                          type="text"
+                        <textarea
+                          rows={2}
                           value={description}
                           onChange={(event) => handleDataChange(`experience.${index}.description.${descriptionIndex}`, event.target.value)}
-                          className="flex-1 px-3 py-2 text-xs border border-slate-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="flex-1 resize-y px-3 py-2 text-xs border border-slate-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="Add description"
                         />
-                        <button
-                          onClick={() => {
+                        <ArrayItemControls
+                          path={`experience.${index}.description`}
+                          index={descriptionIndex}
+                          itemCount={experience.description.length}
+                          onMove={moveArrayItem}
+                          onRemove={() => {
                             const newDescriptions = experience.description.filter((_, itemIndex) => itemIndex !== descriptionIndex);
                             handleDataChange(`experience.${index}.description`, newDescriptions);
                           }}
-                          className="text-red-500 hover:bg-red-50 p-2 rounded transition-colors"
-                        >
-                          <X size={16} />
-                        </button>
+                          removeButtonClassName="text-red-500 hover:bg-red-50 p-2 rounded transition-colors"
+                        />
                       </div>
                     ))}
                     <button
@@ -213,7 +331,7 @@ export default function ResumeEditor({
                     </button>
                   </div>
                 </div>
-              </div>
+              </ArrayItemCard>
             ))}
             <button
               onClick={() => addArrayItem('experience', { company: '', position: '', address: '', date: '', description: [''] })}
@@ -234,16 +352,17 @@ export default function ResumeEditor({
         >
           <div className="space-y-4">
             {resumeData.projects.map((project, index) => (
-              <div key={index} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="flex items-start justify-between mb-3">
-                  <h4 className="font-semibold text-slate-900">Project {index + 1}</h4>
-                  <button
-                    onClick={() => removeArrayItem('projects', index)}
-                    className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
+              <ArrayItemCard
+                key={index}
+                path="projects"
+                index={index}
+                itemCount={resumeData.projects.length}
+                title={`Project ${index + 1}`}
+                isExpanded={isArrayItemExpanded('projects', index)}
+                onToggle={() => toggleArrayItem('projects', index)}
+                onMove={moveArrayItem}
+                onRemove={() => removeArrayItem('projects', index)}
+              >
                 <InputField
                   label="Project Name"
                   value={project.name || ''}
@@ -255,22 +374,24 @@ export default function ResumeEditor({
                   <div className="space-y-2">
                     {Array.isArray(project.description) && project.description.map((description, descriptionIndex) => (
                       <div key={descriptionIndex} className="flex gap-2">
-                        <input
-                          type="text"
+                        <textarea
+                          rows={2}
                           value={description}
                           onChange={(event) => handleDataChange(`projects.${index}.description.${descriptionIndex}`, event.target.value)}
-                          className="flex-1 px-3 py-2 text-xs border border-slate-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="flex-1 resize-y px-3 py-2 text-xs border border-slate-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="Add description"
                         />
-                        <button
-                          onClick={() => {
+                        <ArrayItemControls
+                          path={`projects.${index}.description`}
+                          index={descriptionIndex}
+                          itemCount={project.description.length}
+                          onMove={moveArrayItem}
+                          onRemove={() => {
                             const newDescriptions = project.description.filter((_, itemIndex) => itemIndex !== descriptionIndex);
                             handleDataChange(`projects.${index}.description`, newDescriptions);
                           }}
-                          className="text-red-500 hover:bg-red-50 p-2 rounded transition-colors"
-                        >
-                          <X size={16} />
-                        </button>
+                          removeButtonClassName="text-red-500 hover:bg-red-50 p-2 rounded transition-colors"
+                        />
                       </div>
                     ))}
                     <button
@@ -281,7 +402,7 @@ export default function ResumeEditor({
                     </button>
                   </div>
                 </div>
-              </div>
+              </ArrayItemCard>
             ))}
             <button
               onClick={() => addArrayItem('projects', { name: '', description: [''] })}
@@ -302,16 +423,17 @@ export default function ResumeEditor({
         >
           <div className="space-y-4">
             {resumeData.skills.map((skillGroup, index) => (
-              <div key={index} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="flex items-start justify-between mb-3">
-                  <h4 className="font-semibold text-slate-900">Skill Section {index + 1}</h4>
-                  <button
-                    onClick={() => removeArrayItem('skills', index)}
-                    className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
+              <ArrayItemCard
+                key={index}
+                path="skills"
+                index={index}
+                itemCount={resumeData.skills.length}
+                title={`Skill Section ${index + 1}`}
+                isExpanded={isArrayItemExpanded('skills', index)}
+                onToggle={() => toggleArrayItem('skills', index)}
+                onMove={moveArrayItem}
+                onRemove={() => removeArrayItem('skills', index)}
+              >
                 <InputField
                   label="Skill Type"
                   value={skillGroup.type || ''}
@@ -323,22 +445,24 @@ export default function ResumeEditor({
                   <div className="space-y-2">
                     {getSkillValues(skillGroup).map((skill, skillIndex) => (
                       <div key={skillIndex} className="flex gap-2">
-                        <input
-                          type="text"
+                        <textarea
+                          rows={2}
                           value={skill}
                           onChange={(event) => handleDataChange(`skills.${index}.value.${skillIndex}`, event.target.value)}
-                          className="flex-1 px-3 py-2 text-xs border border-slate-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="flex-1 resize-y px-3 py-2 text-xs border border-slate-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="Add skill"
                         />
-                        <button
-                          onClick={() => {
+                        <ArrayItemControls
+                          path={`skills.${index}.value`}
+                          index={skillIndex}
+                          itemCount={getSkillValues(skillGroup).length}
+                          onMove={moveArrayItem}
+                          onRemove={() => {
                             const newSkills = getSkillValues(skillGroup).filter((_, itemIndex) => itemIndex !== skillIndex);
                             handleDataChange(`skills.${index}.value`, newSkills);
                           }}
-                          className="text-red-500 hover:bg-red-50 p-2 rounded transition-colors"
-                        >
-                          <X size={16} />
-                        </button>
+                          removeButtonClassName="text-red-500 hover:bg-red-50 p-2 rounded transition-colors"
+                        />
                       </div>
                     ))}
                     <button
@@ -349,7 +473,7 @@ export default function ResumeEditor({
                     </button>
                   </div>
                 </div>
-              </div>
+              </ArrayItemCard>
             ))}
             <button
               onClick={() => addArrayItem('skills', { type: '', value: [''] })}
@@ -370,16 +494,17 @@ export default function ResumeEditor({
         >
           <div className="space-y-4">
             {resumeData.education.map((education, index) => (
-              <div key={index} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="flex items-start justify-between mb-3">
-                  <h4 className="font-semibold text-slate-900">Education {index + 1}</h4>
-                  <button
-                    onClick={() => removeArrayItem('education', index)}
-                    className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
+              <ArrayItemCard
+                key={index}
+                path="education"
+                index={index}
+                itemCount={resumeData.education.length}
+                title={`Education ${index + 1}`}
+                isExpanded={isArrayItemExpanded('education', index)}
+                onToggle={() => toggleArrayItem('education', index)}
+                onMove={moveArrayItem}
+                onRemove={() => removeArrayItem('education', index)}
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <InputField label="School/University" value={education.school || ''} onChange={(value) => handleDataChange(`education.${index}.school`, value)} size="small" />
                   <InputField label="Date" value={education.date || ''} onChange={(value) => handleDataChange(`education.${index}.date`, value)} size="small" />
@@ -392,7 +517,7 @@ export default function ResumeEditor({
                     />
                   </div>
                 </div>
-              </div>
+              </ArrayItemCard>
             ))}
             <button
               onClick={() => addArrayItem('education', { school: '', date: '', details: '' })}
@@ -413,8 +538,19 @@ export default function ResumeEditor({
         >
           <div className="space-y-4">
             {resumeData.miscellaneous.map((miscellaneousItem, index) => (
-              <div key={index} className="flex gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="flex-1">
+              <ArrayItemCard
+                key={index}
+                path="miscellaneous"
+                index={index}
+                itemCount={resumeData.miscellaneous.length}
+                title={`Item ${index + 1}`}
+                isExpanded={isArrayItemExpanded('miscellaneous', index)}
+                onToggle={() => toggleArrayItem('miscellaneous', index)}
+                onMove={moveArrayItem}
+                onRemove={() => removeArrayItem('miscellaneous', index)}
+                className="p-3 bg-slate-50 rounded-lg border border-slate-200"
+              >
+                <div>
                   <InputField
                     label={`Item ${index + 1}`}
                     value={miscellaneousItem.type || ''}
@@ -422,13 +558,7 @@ export default function ResumeEditor({
                     size="small"
                   />
                 </div>
-                <button
-                  onClick={() => removeArrayItem('miscellaneous', index)}
-                  className="text-red-500 hover:bg-red-50 p-2 rounded transition-colors"
-                >
-                  <X size={18} />
-                </button>
-              </div>
+              </ArrayItemCard>
             ))}
             <button
               onClick={() => addArrayItem('miscellaneous', { type: '' })}
