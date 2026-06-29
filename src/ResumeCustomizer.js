@@ -1,158 +1,91 @@
-import React, { useCallback, useState } from 'react';
-import { Download } from 'lucide-react';
-import ResumeEditor from './components/ResumeEditor';
-import ResumeStats from './components/ResumeStats';
-import UploadSection from './components/UploadSection';
-import { downloadJSON, exportToDocx } from './utils/exportResume';
-import { normalizeResumeData } from './utils/resumeData';
+import React, { useState } from 'react';
 
-export default function ResumeCustomizer() {
-  const [resumeData, setResumeData] = useState(null);
-  const [error, setError] = useState('');
-  const [expandedSections, setExpandedSections] = useState({});
-  const [lastUpdated, setLastUpdated] = useState(null);
+export default function OpenRouterChat() {
+  const [input, setInput] = useState('');
+  const [response, setResponse] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleJsonUpload = useCallback((event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+  const handleAskAI = async (e) => {
+    e.preventDefault();
+    if (!input.trim()) return;
 
-    const reader = new FileReader();
-    reader.onload = (loadEvent) => {
-      try {
-        const json = JSON.parse(loadEvent.target.result);
-        const normalizedJson = normalizeResumeData(json);
-        setResumeData(normalizedJson);
-        setError('');
-        setExpandedSections(
-          Object.keys(normalizedJson).reduce((sections, key) => {
-            sections[key] = true;
-            return sections;
-          }, {})
-        );
-      } catch (err) {
-        setError('Invalid JSON format. Please check your file.');
-      }
-    };
-    reader.readAsText(file);
-  }, []);
+    setLoading(true);
+    setError(null);
+    setResponse('');
 
-  const handleDataChange = useCallback((path, value) => {
-    setResumeData((previousData) => {
-      const updated = JSON.parse(JSON.stringify(previousData));
-      const keys = path.split('.');
-      let current = updated;
+    // Access the key safely from environment configurations
+    const apiKey = process.env.REACT_APP_OPENROUTER_KEY;
 
-      for (let index = 0; index < keys.length - 1; index++) {
-        const key = keys[index];
-        const nextKey = keys[index + 1];
+    try {
+      console.log(apiKey);
+      
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          // OpenRouter requires these headers to rank your app on their leaderboard (Optional)
+          "HTTP-Referer": window.location.origin, 
+          "X-Title": "My Resume Builder App",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          // You can choose any model OpenRouter supports (e.g., meta-llama/llama-3-8b-instruct)
+          model: "openrouter/free", 
+          messages: [
+            { role: "system", content: "You are an expert resume writer. Help the user improve their text." },
+            { role: "user", content: input }
+          ],
+          temperature: 0.7
+        })
+      });
 
-        if (!Number.isNaN(Number(nextKey))) {
-          current = current[key][Number(nextKey)];
-          index++;
-        } else {
-          current = current[key];
-        }
+      if (!res.ok) {
+        throw new Error(`HTTP Error Status: ${res.status}`);
       }
 
-      const lastKey = keys[keys.length - 1];
-      if (!Number.isNaN(Number(lastKey))) {
-        const parentKey = keys[keys.length - 2];
-        let parent = updated;
-        for (let index = 0; index < keys.length - 2; index++) {
-          parent = parent[keys[index]];
-        }
-        parent[parentKey][Number(lastKey)] = value;
-      } else {
-        current[lastKey] = value;
-      }
+      const data = await res.json();
+      
+      // Extract the text response message safely out of the standard OpenAI response format
+      const aiMessage = data.choices?.[0]?.message?.content || "No response received.";
+      setResponse(aiMessage);
 
-      return updated;
-    });
-    setLastUpdated(new Date());
-  }, []);
-
-  const toggleSection = (sectionName) => {
-    setExpandedSections((previousSections) => ({
-      ...previousSections,
-      [sectionName]: !previousSections[sectionName],
-    }));
-  };
-
-  const addArrayItem = (path, template) => {
-    setResumeData((previousData) => {
-      const updated = JSON.parse(JSON.stringify(previousData));
-      const collection = getNestedValue(updated, path);
-      collection.push(JSON.parse(JSON.stringify(template)));
-      return updated;
-    });
-    setLastUpdated(new Date());
-  };
-
-  const removeArrayItem = (path, index) => {
-    setResumeData((previousData) => {
-      const updated = JSON.parse(JSON.stringify(previousData));
-      const collection = getNestedValue(updated, path);
-      collection.splice(index, 1);
-      return updated;
-    });
-    setLastUpdated(new Date());
+    } catch (err) {
+      console.error("OpenRouter Fetch Error:", err);
+      setError(err.message || "Something went wrong while talking to the model.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
-      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/80 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Resume Customizer</h1>
-            <p className="text-sm text-slate-600 mt-1">Upload, edit, and export your professional resume</p>
-            {lastUpdated && (
-              <p className="text-xs text-emerald-600 font-medium mt-1">
-                Last updated: {lastUpdated.toLocaleTimeString()}
-              </p>
-            )}
-          </div>
-          {resumeData && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => downloadJSON(resumeData)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors shadow-lg hover:shadow-xl"
-              >
-                <Download size={18} />
-                Download JSON
-              </button>
-              <button
-                onClick={() => exportToDocx(resumeData)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-lg hover:shadow-xl"
-              >
-                <Download size={18} />
-                Download Document
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
+    <div style={{ maxWidth: '600px', margin: '40px auto', padding: '20px', fontFamily: 'Arial' }}>
+      <h3>AI Resume Assistant</h3>
+      <form onSubmit={handleAskAI} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <textarea
+          rows={4}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ask the AI to generate a professional summary or optimize a job description point..."
+          style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
+        />
+        <button 
+          type="submit" 
+          disabled={loading}
+          style={{ padding: '10px 20px', backgroundColor: '#0066CC', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+        >
+          {loading ? 'Thinking...' : 'Optimize Text'}
+        </button>
+      </form>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
-        {!resumeData ? (
-          <UploadSection onUpload={handleJsonUpload} error={error} />
-        ) : (
-          <>
-            <ResumeEditor
-              resumeData={resumeData}
-              onDataChange={handleDataChange}
-              onAddItem={addArrayItem}
-              onRemoveItem={removeArrayItem}
-              expandedSections={expandedSections}
-              onToggleSection={toggleSection}
-            />
-            <ResumeStats resumeData={resumeData} />
-          </>
-        )}
-      </main>
+      {error && <p style={{ color: 'red', marginTop: '16px' }}>{error}</p>}
+      
+      {response && (
+        <div style={{ marginTop: '24px', padding: '16px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
+          <strong>AI Suggestions:</strong>
+          <p style={{ whiteSpace: 'pre-wrap', marginTop: '8px', lineHeight: '1.5' }}>{response}</p>
+        </div>
+      )}
     </div>
   );
-}
-
-function getNestedValue(data, path) {
-  return path.split('.').reduce((current, key) => current[key], data);
 }
